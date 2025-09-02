@@ -1,20 +1,23 @@
 # main.py
 
 from fastapi import FastAPI
-from app.routes import auth, equipments, reservations # Importe o novo arquivo de rotas
+from app.routes import auth, equipments, reservations, admin # NOVO: Importa também as rotas de admin
 
 app = FastAPI(
     title="Sistema de Gestão de Equipamentos",
     description="API para gerenciar reservas de equipamentos.",
-    version="1.1.0" # Nova versão
+    version="1.2.0" # Nova versão para refletir a funcionalidade de admin
 )
 
 # Inclui os roteadores na aplicação
 app.include_router(auth.router)
 app.include_router(equipments.router)
-app.include_router(reservations.router) # Registre o novo roteador de reservas
+app.include_router(reservations.router)
+app.include_router(admin.router) # NOVO: Registra o novo roteador de admin
 
 @app.get("/", tags=["Root"])
 def read_root():
-    """Rota principal que exibe uma mensagem de boas-vindas."""
+    """
+    Rota principal que exibe uma mensagem de boas-vindas.
+    """
     return {"message": "Bem-vindo ao Sistema de Gestão de Equipamentos"}

@@ -67,3 +67,16 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+# --- ALTERAÇÃO 3: VERIFICA SE O USUÁRIO AUTENTICADO TEM A PERMISSÃO 'ADMIN' ---
+def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Dependência que verifica se o usuário autenticado tem a permissão 'admin'.
+    Se não for admin, levanta uma exceção HTTP 403 Forbidden.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Permissões de administrador são necessárias."
+        )
+    return current_user
