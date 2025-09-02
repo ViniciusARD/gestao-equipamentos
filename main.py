@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from app.routes import auth, equipments, reservations, admin # NOVO: Importa também as rotas de admin
 
 app = FastAPI(
-    title="Sistema de Gestão de Equipamentos",
+    title="EquipControl: Sistema de Gestão de Equipamentos",
     description="API para gerenciar reservas de equipamentos.",
     version="1.2.0" # Nova versão para refletir a funcionalidade de admin
 )
