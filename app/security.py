@@ -68,3 +68,26 @@ def get_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
     Dependência simples que extrai e retorna a string do token JWT.
     """
     return credentials.credentials
+
+# --- DUAS NOVAS FUNÇÕES ---
+def create_password_reset_token(email: str) -> str:
+    """
+    Cria um token JWT específico para redefinição de senha, com validade curta.
+    """
+    expire = datetime.utcnow() + timedelta(minutes=15) # Token válido por 15 minutos
+    to_encode = {"exp": expire, "sub": email, "scope": "password_reset"}
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+def verify_password_reset_token(token: str) -> str | None:
+    """
+    Verifica o token de redefinição de senha e retorna o email se for válido.
+    """
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("scope") == "password_reset":
+            email: str = payload.get("sub")
+            return email
+        return None
+    except JWTError:
+        return None

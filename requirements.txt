@@ -12,3 +12,4 @@ python-multipart
 google-api-python-client
 google-auth-oauthlib
 pyasn1==0.4.8
+fastapi-mail
