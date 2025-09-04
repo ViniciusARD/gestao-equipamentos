@@ -1,7 +1,7 @@
 # main.py
 
 from fastapi import FastAPI
-from app.routes import auth, equipments, reservations, admin # NOVO: Importa também as rotas de admin
+from app.routes import auth, equipments, reservations, admin, google_auth
 
 app = FastAPI(
     title="EquipControl: Sistema de Gestão de Equipamentos",
@@ -13,7 +13,8 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(equipments.router)
 app.include_router(reservations.router)
-app.include_router(admin.router) # NOVO: Registra o novo roteador de admin
+app.include_router(admin.router) 
+app.include_router(google_auth.router)
 
 @app.get("/", tags=["Root"])
 def read_root():
