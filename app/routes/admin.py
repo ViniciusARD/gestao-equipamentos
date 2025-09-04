@@ -8,17 +8,20 @@ from app.database import get_db
 from app.models.user import User
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
-from app.models.google_token import GoogleOAuthToken # <-- NOVO: Importar o modelo do token
+from app.models.google_token import GoogleOAuthToken
 from app.schemas.reservation import ReservationOut
-from app.schemas.admin import ReservationStatusUpdate
+# Importações atualizadas
+from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
+from app.schemas.user import UserOut # Para o tipo de resposta
 from app.security import get_current_admin_user
-# --- NOVO: Importar as nossas funções de utilidade do Google Calendar ---
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
 
 router = APIRouter(
     prefix="/admin",
     tags=["Admin Management"]
 )
+
+# --- Rotas de Gerenciamento de Reservas ---
 
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
@@ -40,7 +43,6 @@ def update_reservation_status(
 ):
     """
     (Admin) Atualiza o status de uma reserva (approve, reject, return).
-    Se o status for 'approved', tenta criar um evento no Google Calendar do usuário.
     """
     db_reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
     if not db_reservation:
@@ -48,11 +50,9 @@ def update_reservation_status(
 
     unit = db_reservation.equipment_unit
     
-    # --- LÓGICA DE INTEGRAÇÃO COM O GOOGLE CALENDAR ADICIONADA AQUI ---
-    if update_data.status == 'approved':
+    if update_data.status.value == 'approved':
         unit.status = 'reserved'
         
-        # Tenta criar o evento no Google Calendar
         user_to_notify = db_reservation.user
         google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
         
@@ -62,16 +62,41 @@ def update_reservation_status(
                 service = get_calendar_service(google_token.token_json)
                 create_calendar_event(service, db_reservation)
             except Exception as e:
-                # Não bloqueia a aprovação se a criação do evento falhar, apenas regista o erro
                 print(f"ERRO ao criar evento no Google Calendar: {e}")
         else:
-            print(f"AVISO: O usuário {user_to_notify.email} não conectou a sua conta Google. O evento não será criado.")
+            print(f"AVISO: O usuário {user_to_notify.email} não conectou a sua conta Google.")
 
-    elif update_data.status in ['rejected', 'returned']:
+    elif update_data.status.value in ['rejected', 'returned']:
         unit.status = 'available'
     
-    db_reservation.status = update_data.status
+    db_reservation.status = update_data.status.value
     db.commit()
     db.refresh(db_reservation)
     
     return db_reservation
+
+# --- NOVO: Rota para Gerenciamento de Usuários ---
+
+@router.patch("/users/{user_id}/role", response_model=UserOut)
+def set_user_role(
+    user_id: int,
+    role_update: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user)
+):
+    """
+    (Admin) Define a permissão (role) de um usuário como 'user' ou 'admin'.
+    """
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
+        
+    # Impede que um admin remova a própria permissão acidentalmente
+    if db_user.id == admin_user.id and role_update.role.value != "admin":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um administrador não pode remover a própria permissão.")
+    
+    db_user.role = role_update.role.value
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user

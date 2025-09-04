@@ -1,0 +1,14 @@
+# .env
+
+# Chave secreta para segurança da aplicação (sessões, tokens, etc.)
+SECRET_KEY='XXXX'
+
+# String de conexão com o banco de dados PostgreSQL
+DATABASE_URL='postgresql://postgres:XXXX@localhost:5432/gestao_equipamentos_db'
+
+# Chave para criptografia dos tokens JWT
+JWT_SECRET_KEY='XXXX'
+
+# Chave do Google Calendar API (viniarado3@gmail.com)
+GOOGLE_CLIENT_ID='XXXX'
+GOOGLE_CLIENT_SECRET='XXXX'
