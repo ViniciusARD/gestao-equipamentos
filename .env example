@@ -9,6 +9,15 @@ DATABASE_URL='postgresql://postgres:XXXX@localhost:5432/gestao_equipamentos_db'
 # Chave para criptografia dos tokens JWT
 JWT_SECRET_KEY='XXXX'
 
-# Chave do Google Calendar API (viniarado3@gmail.com)
+# Chave do Google Calendar API (XXXX@gmail.com)
 GOOGLE_CLIENT_ID='XXXX'
 GOOGLE_CLIENT_SECRET='XXXX'
+
+# --- ADICIONE AS CONFIGURAÇÕES DE EMAIL ABAIXO ---
+MAIL_USERNAME="XXXX@gmail.com"
+MAIL_PASSWORD="XXXX" #
+MAIL_FROM="XXXX@gmail.com"
+MAIL_PORT=XXX
+MAIL_SERVER="smtp.gmail.com"
+MAIL_STARTTLS=True
+MAIL_SSL_TLS=False

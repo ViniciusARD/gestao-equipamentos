@@ -1,11 +1,13 @@
 # app/routes/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-# A dependência OAuth2PasswordRequestForm foi removida daqui
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-# Importamos o novo schema UserLogin que criamos
+
 from app.schemas.user import UserCreate, UserOut, Token, UserLogin, ForgotPasswordRequest, ResetPasswordRequest
 from app.security import get_password_hash, verify_password, create_access_token, create_password_reset_token, verify_password_reset_token
 from app.email_utils import send_reset_password_email
@@ -14,6 +16,8 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+templates = Jinja2Templates(directory="app/templates")
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -109,3 +113,15 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     db.commit()
 
     return {"message": "Sua senha foi redefinida com sucesso."}
+
+@router.get("/reset-password-page", response_class=HTMLResponse)
+async def get_reset_password_page(request: Request, token: str):
+    """
+    Exibe a página HTML para o usuário digitar a nova senha.
+    """
+    # Apenas para garantir que o token é válido antes de mostrar a página
+    email = verify_password_reset_token(token)
+    if not email:
+        return templates.TemplateResponse("invalid_token.html", {"request": request})
+
+    return templates.TemplateResponse("reset_password_form.html", {"request": request, "token": token})
