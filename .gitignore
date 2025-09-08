@@ -1,0 +1,3 @@
+# Arquivos de ambiente e segredos
+.env
+client_secret.json
