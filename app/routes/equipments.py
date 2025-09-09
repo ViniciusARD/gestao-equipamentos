@@ -8,13 +8,14 @@ from app.database import get_db
 from app.models.equipment_type import EquipmentType
 from app.models.equipment_unit import EquipmentUnit
 from app.models.user import User
-# Importar os schemas de Update
+from app.models.reservation import Reservation # Importar Reservation para verificações
 from app.schemas.equipment import (
     EquipmentTypeCreate, EquipmentTypeOut, EquipmentTypeUpdate,
     EquipmentUnitCreate, EquipmentUnitOut, EquipmentUnitUpdate, 
     EquipmentTypeWithUnitsOut
 )
 from app.security import get_current_user, get_current_admin_user
+from app.logging_utils import create_log # Importar a nossa função de log
 
 router = APIRouter(
     prefix="/equipments",
@@ -27,13 +28,9 @@ router = APIRouter(
 def create_equipment_type(
     equipment_type: EquipmentTypeCreate,
     db: Session = Depends(get_db),
-    # --- ALTERAÇÃO: Rota agora protegida para apenas administradores ---
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    Cria um novo tipo de equipamento (ex: "Notebook Dell Vostro").
-    Requer autenticação de administrador.
-    """
+    """(Admin) Cria um novo tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.name == equipment_type.name).first()
     if db_type:
         raise HTTPException(status_code=400, detail="Este tipo de equipamento já existe.")
@@ -42,33 +39,20 @@ def create_equipment_type(
     db.add(new_type)
     db.commit()
     db.refresh(new_type)
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
+    
     return new_type
 
 @router.get("/types", response_model=List[EquipmentTypeOut])
-def list_equipment_types(
-    db: Session = Depends(get_db),
-    # --- ALTERAÇÃO: Rota agora protegida para utilizadores autenticados ---
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Lista todos os tipos de equipamentos cadastrados.
-    Requer autenticação.
-    """
-    types = db.query(EquipmentType).offset(0).limit(100).all()
-    return types
+def list_equipment_types(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """(Usuários Autenticados) Lista todos os tipos de equipamentos."""
+    return db.query(EquipmentType).all()
 
 @router.get("/types/{type_id}", response_model=EquipmentTypeWithUnitsOut)
-def get_equipment_type_with_units(
-    type_id: int, 
-    db: Session = Depends(get_db),
-    # --- ALTERAÇÃO: Rota agora protegida para utilizadores autenticados ---
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Busca um tipo de equipamento pelo seu ID e retorna os detalhes
-    junto com todas as suas unidades físicas.
-    Requer autenticação.
-    """
+def get_equipment_type_with_units(type_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """(Usuários Autenticados) Busca um tipo de equipamento e suas unidades."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -81,9 +65,7 @@ def update_equipment_type(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    (Admin) Atualiza os detalhes de um tipo de equipamento.
-    """
+    """(Admin) Atualiza os detalhes de um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -94,6 +76,10 @@ def update_equipment_type(
     
     db.commit()
     db.refresh(db_type)
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
+    
     return db_type
 
 @router.delete("/types/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -102,15 +88,18 @@ def delete_equipment_type(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    (Admin) Deleta um tipo de equipamento e todas as suas unidades.
-    """
+    """(Admin) Deleta um tipo de equipamento e todas as suas unidades."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
     
+    type_name = db_type.name # Salvar o nome para o log antes de deletar
     db.delete(db_type)
     db.commit()
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
+    
     return
 
 # --- Rotas para UNIDADES de Equipamento ---
@@ -119,13 +108,9 @@ def delete_equipment_type(
 def create_equipment_unit(
     unit: EquipmentUnitCreate,
     db: Session = Depends(get_db),
-    # --- ALTERAÇÃO: Rota agora protegida para apenas administradores ---
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    Cria uma nova unidade física para um tipo de equipamento existente.
-    Requer autenticação de administrador.
-    """
+    """(Admin) Cria uma nova unidade física para um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == unit.type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
@@ -134,20 +119,16 @@ def create_equipment_unit(
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' (ID: {new_unit.id}) para o tipo '{db_type.name}'.")
+    
     return new_unit
 
 @router.get("/units", response_model=List[EquipmentUnitOut])
-def list_all_units(
-    db: Session = Depends(get_db),
-    # --- ALTERAÇÃO: Rota agora protegida para utilizadores autenticados ---
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Lista todas as unidades de equipamentos cadastradas no sistema.
-    Requer autenticação.
-    """
-    units = db.query(EquipmentUnit).offset(0).limit(100).all()
-    return units
+def list_all_units(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """(Usuários Autenticados) Lista todas as unidades de equipamentos."""
+    return db.query(EquipmentUnit).all()
 
 @router.put("/units/{unit_id}", response_model=EquipmentUnitOut)
 def update_equipment_unit(
@@ -156,9 +137,7 @@ def update_equipment_unit(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    (Admin) Atualiza os detalhes de uma unidade de equipamento.
-    """
+    """(Admin) Atualiza os detalhes de uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -169,6 +148,10 @@ def update_equipment_unit(
     
     db.commit()
     db.refresh(db_unit)
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' atualizou a unidade ID {db_unit.id}.")
+    
     return db_unit
 
 @router.delete("/units/{unit_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -177,13 +160,28 @@ def delete_equipment_unit(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """
-    (Admin) Deleta uma unidade de equipamento.
-    """
+    """(Admin) Deleta uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
         
+    # TRATAMENTO DE ERRO: Verifica se a unidade tem reservas ativas
+    active_reservation = db.query(Reservation).filter(
+        Reservation.unit_id == unit_id,
+        Reservation.status.in_(['pending', 'approved'])
+    ).first()
+    
+    if active_reservation:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Não é possível deletar a unidade. Ela está associada à reserva ativa ID {active_reservation.id}."
+        )
+    
+    unit_identifier = db_unit.identifier_code or db_unit.id # Para o log
     db.delete(db_unit)
     db.commit()
+    
+    # LOG DE ATIVIDADE
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
+    
     return
