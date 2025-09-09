@@ -1,15 +1,17 @@
 # app/security.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+import uuid
 
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.models.token_blacklist import TokenBlacklist
 
 bearer_scheme = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -91,3 +93,47 @@ def verify_password_reset_token(token: str) -> str | None:
         return None
     except JWTError:
         return None
+    
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({
+        "exp": expire,
+        "jti": str(uuid.uuid4()) # Adiciona um ID único ao token
+    })
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme), 
+    db: Session = Depends(get_db)
+) -> User:
+    token = credentials.credentials
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não foi possível validar as credenciais",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        jti: str = payload.get("jti") # Pega o JTI do token
+        if user_id is None or jti is None:
+            raise credentials_exception
+        
+        # --- VERIFICAÇÃO DA BLACKLIST ---
+        token_in_blacklist = db.query(TokenBlacklist).filter(TokenBlacklist.jti == jti).first()
+        if token_in_blacklist:
+            raise credentials_exception # Token foi revogado
+
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise credentials_exception
+    return user

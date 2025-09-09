@@ -3,14 +3,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from jose import jwt, JWTError
+
 from app.database import get_db
 from app.models.user import User
-
+from app.models.token_blacklist import TokenBlacklist # Importar blacklist
 from app.schemas.user import UserCreate, UserOut, Token, UserLogin, ForgotPasswordRequest, ResetPasswordRequest
-from app.security import get_password_hash, verify_password, create_access_token, create_password_reset_token, verify_password_reset_token
+from app.security import get_password_hash, verify_password, create_access_token, create_password_reset_token, verify_password_reset_token, get_current_user, get_token
 from app.email_utils import send_reset_password_email
+from app.logging_utils import create_log # Importar a função de log
+from app.config import settings
 
 router = APIRouter(
     prefix="/auth",
@@ -45,26 +49,23 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
     return new_user
 
-# --- ESTA É A ROTA DE LOGIN ATUALIZADA ---
+# --- ROTA DE LOGIN ---
 @router.post("/login", response_model=Token)
 def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(get_db)):
-    """
-    Autentica um usuário via JSON e retorna um token de acesso.
-    """
-    # 1. Buscamos o usuário pelo email que veio no corpo do JSON
     user = db.query(User).filter(User.email == user_credentials.email).first()
 
-    # 2. Verificamos se o usuário existe e a senha está correta
     if not user or not verify_password(user_credentials.password, user.password_hash):
+        # Log de falha de login
+        create_log(db, None, "WARNING", f"Tentativa de login falhou para o email: {user_credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 3. Criamos o token de acesso
     access_token = create_access_token(data={"sub": str(user.id)})
-
+    # Log de sucesso de login
+    create_log(db, user.id, "INFO", f"Usuário '{user.username}' logado com sucesso.")
     return {"access_token": access_token, "token_type": "bearer"}
 
 # --- ADICIONE ESTAS DUAS NOVAS ROTAS AO FINAL DO ARQUIVO ---
@@ -125,3 +126,38 @@ async def get_reset_password_page(request: Request, token: str):
         return templates.TemplateResponse("invalid_token.html", {"request": request})
 
     return templates.TemplateResponse("reset_password_form.html", {"request": request, "token": token})
+
+# --- NOVA ROTA DE LOGOUT ---
+@router.post("/logout")
+def logout(db: Session = Depends(get_db), token: str = Depends(get_token)):
+    """
+    Invalida o token JWT atual adicionando-o à blacklist.
+    """
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        user_id = payload.get("sub")
+
+        if not jti:
+            raise HTTPException(status_code=400, detail="Token inválido.")
+
+        # --- MELHORIA ADICIONADA AQUI ---
+        # Verifica se o token já está na blacklist antes de tentar adicionar
+        is_blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.jti == jti).first()
+        if is_blacklisted:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este token já foi invalidado.")
+        
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+
+        db_token = TokenBlacklist(jti=jti, expires_at=expires_at)
+        db.add(db_token)
+        db.commit()
+
+        create_log(db, user_id, "INFO", f"Usuário ID {user_id} fez logout.")
+
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Token inválido.")
+    
+    return {"message": "Logout realizado com sucesso."}
+

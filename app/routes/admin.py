@@ -10,11 +10,12 @@ from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.google_token import GoogleOAuthToken
 from app.schemas.reservation import ReservationOut
-# Importações atualizadas
 from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
 from app.schemas.user import UserOut # Para o tipo de resposta
 from app.security import get_current_admin_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
+from app.models.activity_log import ActivityLog # Importar modelo de log
+from app.schemas.logs import ActivityLogOut # Importar schema de log
 
 router = APIRouter(
     prefix="/admin",
@@ -100,3 +101,17 @@ def set_user_role(
     db.refresh(db_user)
     
     return db_user
+
+# --- NOVA ROTA PARA VISUALIZAR LOGS ---
+@router.get("/logs", response_model=List[ActivityLogOut])
+def get_activity_logs(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    """
+    (Admin) Lista os logs de atividade da aplicação, dos mais recentes para os mais antigos.
+    """
+    logs = db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit).all()
+    return logs
