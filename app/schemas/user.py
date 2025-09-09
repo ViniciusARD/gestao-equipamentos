@@ -1,6 +1,7 @@
 # app/schemas/user.py
 
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 # Schema base com os campos comuns
 class UserBase(BaseModel):
@@ -29,10 +30,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- NOVO: Schemas para o fluxo de "Esqueci minha senha" ---
+# Schemas para o fluxo de "Esqueci minha senha" ---
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+ # Schema para atualização do perfil do usuário ---
+class UserUpdate(BaseModel):
+    username: Optional[str] = None

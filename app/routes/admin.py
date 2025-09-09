@@ -35,6 +35,36 @@ def list_all_reservations(
     reservations = db.query(Reservation).order_by(Reservation.created_at.desc()).all()
     return reservations
 
+@router.get("/users", response_model=List[UserOut])
+def list_users(
+    db: Session = Depends(get_db), 
+    admin_user: User = Depends(get_current_admin_user)
+):
+    """
+    (Admin) Lista todos os usuários cadastrados no sistema.
+    """
+    return db.query(User).all()
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user_by_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user)
+):
+    """
+    (Admin) Deleta um usuário pelo seu ID.
+    """
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    
+    if db_user.id == admin_user.id:
+        raise HTTPException(status_code=400, detail="Um administrador não pode deletar a própria conta por esta rota.")
+        
+    db.delete(db_user)
+    db.commit()
+    return
+
 @router.patch("/reservations/{reservation_id}", response_model=ReservationOut)
 def update_reservation_status(
     reservation_id: int,

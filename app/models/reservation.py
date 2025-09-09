@@ -9,8 +9,6 @@ class Reservation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    
-    # A reserva agora aponta para a tabela 'equipment_units'
     unit_id = Column(Integer, ForeignKey('equipment_units.id'), nullable=False)
     
     start_time = Column(DateTime(timezone=True), nullable=False)
@@ -18,6 +16,6 @@ class Reservation(Base):
     status = Column(String(20), nullable=False, default='pending')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relacionamentos para acessar os objetos completos
-    user = relationship("User")
-    equipment_unit = relationship("EquipmentUnit") # O nome do relacionamento também foi atualizado
+    # Adiciona o back_populates para consistência
+    user = relationship("User", back_populates="reservations")
+    equipment_unit = relationship("EquipmentUnit", back_populates="reservations")

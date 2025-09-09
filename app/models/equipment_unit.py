@@ -12,5 +12,6 @@ class EquipmentUnit(Base):
     identifier_code = Column(String(50), unique=True, nullable=True)
     status = Column(String(20), nullable=False, default='available')
 
-    # Relacionamento para acessar o tipo a partir de uma unidade
     equipment_type = relationship("EquipmentType", back_populates="units")
+    # Adiciona o relacionamento inverso e a cascata
+    reservations = relationship("Reservation", back_populates="equipment_unit", cascade="all, delete-orphan")
