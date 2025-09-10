@@ -115,18 +115,6 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 
     return {"message": "Sua senha foi redefinida com sucesso."}
 
-@router.get("/reset-password-page", response_class=HTMLResponse)
-async def get_reset_password_page(request: Request, token: str):
-    """
-    Exibe a página HTML para o usuário digitar a nova senha.
-    """
-    # Apenas para garantir que o token é válido antes de mostrar a página
-    email = verify_password_reset_token(token)
-    if not email:
-        return templates.TemplateResponse("invalid_token.html", {"request": request})
-
-    return templates.TemplateResponse("reset_password_form.html", {"request": request, "token": token})
-
 # --- NOVA ROTA DE LOGOUT ---
 @router.post("/logout")
 def logout(db: Session = Depends(get_db), token: str = Depends(get_token)):

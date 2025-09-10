@@ -4,7 +4,6 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pathlib import Path
 from app.config import settings
 
-# Configuração do serviço de email a partir das variáveis de ambiente
 conf = ConnectionConfig(
     MAIL_USERNAME=settings.MAIL_USERNAME,
     MAIL_PASSWORD=settings.MAIL_PASSWORD,
@@ -22,8 +21,9 @@ async def send_reset_password_email(email_to: str, username: str, token: str):
     """
     Envia o email de redefinição de senha para o usuário.
     """
-    # TODO: No futuro, o link deve apontar para a página do seu frontend
-    reset_link = f"http://127.0.0.1:8000/auth/reset-password-page?token={token}"
+    # --- ALTERAÇÃO AQUI ---
+    # O link agora aponta para um endereço web local, que é confiável para os clientes de e-mail.
+    reset_link = f"http://127.0.0.1:5500/frontend/reset_password_form.html?token={token}"
 
     template_body = {
         "username": username,
