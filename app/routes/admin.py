@@ -1,7 +1,7 @@
 # app/routes/admin.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks # 1. Importar BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from sqlalchemy.orm import Session, joinedload # 1. Importar joinedload
 from typing import List
 
 from app.database import get_db
@@ -22,47 +22,44 @@ router = APIRouter(
     tags=["Admin Management"]
 )
 
-# --- 2. NOVA FUNÇÃO HELPER PARA A TAREFA EM SEGUNDO PLANO ---
-# Esta função contém a lógica que será executada em background.
 def approve_and_create_calendar_event(db: Session, reservation: Reservation):
-    """
-    Função para ser executada em segundo plano.
-    Busca o token do usuário e tenta criar um evento no Google Calendar.
-    """
-    # É preciso re-buscar o usuário da reserva dentro da sessão da task
     user_to_notify = reservation.user
     google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
     
     if google_token:
         print(f"BACKGROUND TASK: Token do Google encontrado para {user_to_notify.email}. Criando evento...")
         try:
-            # A comunicação com a API do Google acontece aqui, em segundo plano.
             service = get_calendar_service(google_token.token_json)
             create_calendar_event(service, reservation)
         except Exception as e:
-            # Se der erro, apenas logamos no console do servidor, sem travar o usuário.
             print(f"BACKGROUND TASK ERROR: Falha ao criar evento no Google Calendar: {e}")
     else:
         print(f"BACKGROUND TASK INFO: Usuário {user_to_notify.email} não conectou a conta Google.")
 
-
-# --- Rotas de Gerenciamento de Reservas ---
-
+# --- ROTA DE LISTAGEM OTIMIZADA ---
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
     """(Admin) Lista todas as reservas de todos os usuários."""
-    reservations = db.query(Reservation).order_by(Reservation.created_at.desc()).all()
+    # 2. Aplicar Eager Loading para buscar todos os dados relacionados em uma única consulta
+    reservations = (
+        db.query(Reservation)
+        .options(
+            joinedload(Reservation.user),
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        )
+        .order_by(Reservation.created_at.desc())
+        .all()
+    )
     return reservations
 
-# --- ROTA DE ATUALIZAÇÃO DE RESERVA OTIMIZADA ---
 @router.patch("/reservations/{reservation_id}", response_model=ReservationOut)
 def update_reservation_status(
     reservation_id: int,
     update_data: ReservationStatusUpdate,
-    background_tasks: BackgroundTasks, # 3. Injetar a dependência BackgroundTasks
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
@@ -73,10 +70,8 @@ def update_reservation_status(
 
     unit = db_reservation.equipment_unit
     
-    # Lógica principal, que é RÁPIDA
     if update_data.status.value == 'approved':
         unit.status = 'reserved'
-        # 4. Adicionar a tarefa demorada para ser executada em segundo plano
         background_tasks.add_task(approve_and_create_calendar_event, db, db_reservation)
 
     elif update_data.status.value in ['rejected', 'returned']:
@@ -86,9 +81,7 @@ def update_reservation_status(
     db.commit()
     db.refresh(db_reservation)
     
-    # A resposta é retornada ao usuário IMEDIATAMENTE.
     return db_reservation
-
 
 # --- Rotas de Gerenciamento de Usuários (sem alterações) ---
 
