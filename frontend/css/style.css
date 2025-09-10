@@ -1,10 +1,11 @@
 /* css/style.css */
 
+/* Estilos existentes para tela de login */
 html, body {
     height: 100%;
 }
 
-body {
+.login-body {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -29,4 +30,93 @@ body {
     width: 72px;
     height: 72px;
     margin-bottom: 1rem;
+}
+
+/* --- NOVOS ESTILOS PARA A DASHBOARD --- */
+
+body {
+    overflow-x: hidden; /* Previne scroll horizontal */
+}
+
+#wrapper {
+    display: flex;
+}
+
+#sidebar-wrapper {
+    min-height: 100vh;
+    width: 250px;
+    margin-left: -250px;
+    transition: margin .25s ease-out;
+    color: #fff;
+}
+
+#sidebar-wrapper .sidebar-heading {
+    padding: 0.875rem 1.25rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+}
+
+#sidebar-wrapper .admin-heading {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    color: #999;
+}
+
+
+#sidebar-wrapper .list-group {
+    width: 250px;
+}
+
+#sidebar-wrapper .list-group-item {
+    color: #ccc;
+    border: none;
+}
+
+#sidebar-wrapper .list-group-item.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+#sidebar-wrapper .list-group-item:hover {
+    background-color: #343a40;
+    color: #fff;
+}
+
+#page-content-wrapper {
+    min-width: 100vw;
+}
+
+#wrapper.toggled #sidebar-wrapper {
+    margin-left: 0;
+}
+
+#wrapper.toggled #page-content-wrapper {
+    min-width: calc(100vw - 250px);
+}
+
+@media (min-width: 768px) {
+    #sidebar-wrapper {
+        margin-left: 0;
+    }
+
+    #page-content-wrapper {
+        min-width: 0;
+        width: 100%;
+    }
+
+    #wrapper.toggled #sidebar-wrapper {
+        margin-left: -250px;
+    }
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
 }

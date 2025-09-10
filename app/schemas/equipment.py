@@ -3,6 +3,20 @@
 from pydantic import BaseModel
 from typing import Optional, List
 
+# --- Schemas de base e de output para EquipmentType ---
+# Definidos primeiro para que possam ser usados nos schemas de Unit.
+
+class EquipmentTypeBase(BaseModel):
+    name: str
+    category: str
+    description: Optional[str] = None
+
+class EquipmentTypeOut(EquipmentTypeBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
 # --- Schemas para EquipmentUnit (Unidade do Equipamento) ---
 
 class EquipmentUnitBase(BaseModel):
@@ -16,12 +30,17 @@ class EquipmentUnitUpdate(BaseModel):
     identifier_code: Optional[str] = None
     status: Optional[str] = None
 
-# --- Schemas para EquipmentType (Tipo do Equipamento) ---
+# --- CORREÇÃO APLICADA AQUI ---
+# O schema de output da Unidade agora inclui o objeto completo do Tipo.
+class EquipmentUnitOut(EquipmentUnitBase):
+    id: int
+    type_id: int
+    equipment_type: EquipmentTypeOut  # <--- Esta é a linha que corrige o bug
 
-class EquipmentTypeBase(BaseModel):
-    name: str
-    category: str
-    description: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+# --- Schemas restantes para EquipmentType ---
 
 class EquipmentTypeCreate(EquipmentTypeBase):
     pass
@@ -31,22 +50,7 @@ class EquipmentTypeUpdate(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = None
 
-# --- Schemas de Resposta (Output) ---
-# Estes definem como os dados serão retornados pela API.
-
-class EquipmentUnitOut(EquipmentUnitBase):
-    id: int
-    type_id: int
-
-    class Config:
-        from_attributes = True
-
-class EquipmentTypeOut(EquipmentTypeBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-# Um schema especial para quando quisermos ver um tipo e todas as suas unidades juntas.
+# Schema especial para quando quisermos ver um tipo e todas as suas unidades juntas.
+# Ele se beneficia da correção acima, pois agora as unidades virão com seus tipos.
 class EquipmentTypeWithUnitsOut(EquipmentTypeOut):
     units: List[EquipmentUnitOut] = []
