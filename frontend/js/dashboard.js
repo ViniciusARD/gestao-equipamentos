@@ -2,6 +2,7 @@
 
 // Constantes da API
 const API_URL = 'http://127.0.0.1:8000';
+let currentUserId = null; // Armazenará o ID do usuário logado
 
 // Função principal que é executada quando a página carrega
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,8 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     initializeApp(token);
-
-    // Prepara o container para as notificações (toasts)
     createToastContainer();
 });
 
@@ -23,12 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initializeApp(token) {
     const user = await fetchUserData(token);
     if (user) {
+        currentUserId = user.id; // Salva o ID do usuário logado
         document.getElementById('user-greeting').textContent = `Olá, ${user.username}!`;
         if (user.role === 'admin') {
             document.getElementById('admin-menu').classList.remove('d-none');
         }
     }
-
     loadEquipmentsView(token);
     setupEventListeners(token);
 }
@@ -57,9 +56,8 @@ async function fetchUserData(token) {
  * @param {string} token O token JWT.
  */
 function setupEventListeners(token) {
-    // Listener de eventos para cliques em QUALQUER LUGAR (event delegation)
     document.body.addEventListener('click', (event) => {
-        const target = event.target.closest('a, button'); // Encontra o link ou botão mais próximo do clique
+        const target = event.target.closest('a, button');
         if (!target) return;
 
         // Ações de navegação
@@ -75,6 +73,10 @@ function setupEventListeners(token) {
             event.preventDefault();
             setActiveNav(target);
             loadManageReservationsView(token);
+        } else if (target.id === 'nav-manage-users') { // NOVO
+            event.preventDefault();
+            setActiveNav(target);
+            loadManageUsersView(token);
         }
         // Ações da página
         else if (target.id === 'logoutButton') logout(token);
@@ -84,10 +86,12 @@ function setupEventListeners(token) {
         else if (target.matches('.admin-action-btn')) {
              event.preventDefault();
              handleUpdateReservationStatus(target, token);
+        } else if (target.matches('.user-action-btn')) { // NOVO
+            event.preventDefault();
+            handleUserAction(target, token);
         }
     });
 
-    // Listener para o envio do formulário de reserva
     document.getElementById('reservationForm').addEventListener('submit', (event) => {
         event.preventDefault();
         handleReservationSubmit(token);
@@ -105,10 +109,6 @@ function setActiveNav(element) {
 
 // --- Funções de Carregamento de Views ---
 
-/**
- * Carrega a view de tipos de equipamentos.
- * @param {string} token O token JWT.
- */
 async function loadEquipmentsView(token) {
     renderView(`
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -145,10 +145,6 @@ async function loadEquipmentsView(token) {
     }
 }
 
-/**
- * Carrega a view "Minhas Reservas".
- * @param {string} token O token JWT.
- */
 async function loadMyReservationsView(token) {
     renderView(`
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -191,10 +187,6 @@ async function loadMyReservationsView(token) {
     }
 }
 
-/**
- * Carrega a view de gerenciamento de reservas para o admin.
- * @param {string} token O token JWT.
- */
 async function loadManageReservationsView(token) {
     renderView(`
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -238,21 +230,64 @@ async function loadManageReservationsView(token) {
     }
 }
 
-// --- Funções dos Modais e Ações ---
-
 /**
- * Manipula a atualização de status de uma reserva pelo admin.
- * @param {HTMLButtonElement} button O botão que foi clicado.
- * @param {string} token O token JWT do admin.
+ * --- NOVA FUNÇÃO ---
+ * Carrega a view de gerenciamento de usuários para o admin.
+ * @param {string} token O token JWT.
  */
+async function loadManageUsersView(token) {
+    renderView(`
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Gerenciar Usuários</h1>
+        </div>
+        <div id="adminUsersList" class="table-responsive"></div>
+    `);
+
+    try {
+        const users = await apiFetch(`${API_URL}/admin/users`, token);
+        const listDiv = document.getElementById('adminUsersList');
+
+        if (users.length === 0) {
+            listDiv.innerHTML = '<p class="text-muted">Nenhum usuário encontrado.</p>';
+            return;
+        }
+
+        const tableHtml = `
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th><th>Username</th><th>Email</th><th>Permissão</th><th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(user => `
+                        <tr id="user-row-${user.id}">
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email}</td>
+                            <td class="role-cell">${renderRoleBadge(user.role)}</td>
+                            <td class="action-cell">${renderUserActions(user)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        listDiv.innerHTML = tableHtml;
+
+    } catch (error) {
+        handleApiError(error);
+    }
+}
+
+
+// --- Funções de Ações e Modais ---
+
 async function handleUpdateReservationStatus(button, token) {
     const reservationId = button.dataset.reservationId;
     const newStatus = button.dataset.action;
     
-    // Feedback visual imediato
     const originalButtonHtml = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+    button.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
     try {
         const updatedReservation = await apiFetch(`${API_URL}/admin/reservations/${reservationId}`, token, {
@@ -260,34 +295,75 @@ async function handleUpdateReservationStatus(button, token) {
             body: { status: newStatus }
         });
 
-        // Atualização "cirúrgica" da linha da tabela
         const row = document.getElementById(`reservation-row-${updatedReservation.id}`);
         if (row) {
             row.querySelector('.status-cell').innerHTML = renderStatusBadge(updatedReservation.status);
             row.querySelector('.action-cell').innerHTML = renderAdminActions(updatedReservation);
         }
-        showToast('Status da reserva atualizado com sucesso!', 'success');
+        showToast('Status da reserva atualizado!', 'success');
     } catch (error) {
         showToast(`Erro: ${error.message}`, 'danger');
-        // Restaura o botão em caso de erro
+        button.disabled = false;
+        button.innerHTML = originalButtonHtml;
+    }
+}
+
+/**
+ * --- NOVA FUNÇÃO ---
+ * Manipula ações de gerenciamento de usuário (mudar role, deletar).
+ * @param {HTMLButtonElement} button O botão que foi clicado.
+ * @param {string} token O token JWT do admin.
+ */
+async function handleUserAction(button, token) {
+    const userId = button.dataset.userId;
+    const action = button.dataset.action;
+
+    if (action === 'delete') {
+        if (!confirm(`Tem certeza de que deseja excluir o usuário ID ${userId}? Esta ação é irreversível.`)) {
+            return;
+        }
+    }
+
+    const originalButtonHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+    try {
+        if (action === 'toggle-role') {
+            const currentRole = button.dataset.currentRole;
+            const newRole = currentRole === 'admin' ? 'user' : 'admin';
+            
+            const updatedUser = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, {
+                method: 'PATCH',
+                body: { role: newRole }
+            });
+
+            const row = document.getElementById(`user-row-${updatedUser.id}`);
+            if (row) {
+                row.querySelector('.role-cell').innerHTML = renderRoleBadge(updatedUser.role);
+                row.querySelector('.action-cell').innerHTML = renderUserActions(updatedUser);
+            }
+            showToast('Permissão do usuário alterada!', 'success');
+        } else if (action === 'delete') {
+            await apiFetch(`${API_URL}/admin/users/${userId}`, token, { method: 'DELETE' });
+            document.getElementById(`user-row-${userId}`).remove();
+            showToast('Usuário excluído com sucesso!', 'success');
+        }
+    } catch (error) {
+        showToast(`Erro: ${error.message}`, 'danger');
         button.disabled = false;
         button.innerHTML = originalButtonHtml;
     }
 }
 
 
-/**
- * Busca e exibe as unidades de um tipo de equipamento em um modal.
- * @param {string} typeId O ID do tipo de equipamento.
- * @param {string} token O token JWT.
- */
 async function fetchAndShowUnits(typeId, token) {
     const unitsModal = new bootstrap.Modal(document.getElementById('unitsModal'));
     const modalTitle = document.getElementById('unitsModalLabel');
     const modalBody = document.getElementById('modalUnitList');
 
     modalTitle.textContent = 'Carregando...';
-    modalBody.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+    modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
     unitsModal.show();
 
     try {
@@ -295,7 +371,7 @@ async function fetchAndShowUnits(typeId, token) {
         modalTitle.textContent = `Unidades de ${typeWithUnits.name}`;
         
         if (typeWithUnits.units.length === 0) {
-            modalBody.innerHTML = '<p class="text-muted">Nenhuma unidade cadastrada para este tipo.</p>';
+            modalBody.innerHTML = '<p class="text-muted">Nenhuma unidade cadastrada.</p>';
             return;
         }
         
@@ -321,10 +397,6 @@ async function fetchAndShowUnits(typeId, token) {
     }
 }
 
-/**
- * Manipula o envio do formulário de reserva.
- * @param {string} token O token JWT.
- */
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -339,10 +411,9 @@ async function handleReservationSubmit(token) {
         return;
     }
 
-    // Feedback visual
     const originalButtonText = submitButton.innerHTML;
     submitButton.disabled = true;
-    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Enviando...`;
+    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
     messageDiv.innerHTML = '';
 
     try {
@@ -356,8 +427,7 @@ async function handleReservationSubmit(token) {
         });
         
         showToast('Reserva solicitada com sucesso!', 'success');
-        const reserveModal = bootstrap.Modal.getInstance(document.getElementById('reserveModal'));
-        reserveModal.hide();
+        bootstrap.Modal.getInstance(document.getElementById('reserveModal')).hide();
         form.reset();
 
     } catch (error) {
@@ -371,66 +441,36 @@ async function handleReservationSubmit(token) {
 
 // --- Funções Auxiliares e Utilitários ---
 
-/**
- * Função centralizada para fazer chamadas à API.
- * @param {string} url O endpoint da API.
- * @param {string} token O token JWT.
- * @param {object} options Opções adicionais para o fetch (method, body).
- * @returns {Promise<any>} A resposta JSON da API.
- */
 async function apiFetch(url, token, options = {}) {
     const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
     };
-
-    const config = {
-        method: options.method || 'GET',
-        headers,
-        ...options
-    };
-
-    if (config.body) {
-        config.body = JSON.stringify(config.body);
-    }
+    const config = { method: options.method || 'GET', headers, ...options };
+    if (config.body) config.body = JSON.stringify(config.body);
 
     const response = await fetch(url, config);
+    if (response.status === 204) return null; // Handle No Content response
     const data = await response.json();
 
-    if (!response.ok) {
-        throw new Error(data.detail || 'Ocorreu um erro na API.');
-    }
+    if (!response.ok) throw new Error(data.detail || 'Ocorreu um erro na API.');
     return data;
 }
 
-/**
- * Lida com erros da API, mostrando-os na view principal.
- * @param {Error} error O objeto de erro.
- */
 function handleApiError(error) {
     console.error(error);
-    const mainContent = document.getElementById('main-content');
-    mainContent.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+    document.getElementById('main-content').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
 }
 
-/**
- * Renderiza o conteúdo principal e mostra um spinner.
- * @param {string} initialHtml O HTML inicial para a view.
- */
 function renderView(initialHtml) {
     const mainContent = document.getElementById('main-content');
     mainContent.innerHTML = initialHtml;
-    const listContainer = mainContent.children[1]; // O segundo elemento (div da lista)
+    const listContainer = mainContent.children[1];
     if(listContainer) {
-        listContainer.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Carregando...</span></div></div>';
+        listContainer.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;" role="status"></div></div>';
     }
 }
 
-/**
- * Abre o modal de reserva.
- * @param {string} unitId ID da unidade.
- * @param {string} unitIdentifier Identificador da unidade.
- */
 function openReserveModal(unitId, unitIdentifier) {
     bootstrap.Modal.getInstance(document.getElementById('unitsModal'))?.hide();
     
@@ -439,15 +479,9 @@ function openReserveModal(unitId, unitIdentifier) {
     document.getElementById('reservationMessage').innerHTML = '';
     document.getElementById('reservationForm').reset();
     
-    const reserveModal = new bootstrap.Modal(document.getElementById('reserveModal'));
-    reserveModal.show();
+    new bootstrap.Modal(document.getElementById('reserveModal')).show();
 }
 
-/**
- * Gera o HTML para o badge de status de uma reserva.
- * @param {string} status O status da reserva.
- * @returns {string} HTML do badge.
- */
 function renderStatusBadge(status) {
     const statusMap = {
         'pending': { text: 'Pendente', badge: 'warning' },
@@ -459,11 +493,6 @@ function renderStatusBadge(status) {
     return `<span class="badge bg-${info.badge}">${info.text}</span>`;
 }
 
-/**
- * Gera o HTML para os botões de ação do admin.
- * @param {object} reservation O objeto da reserva.
- * @returns {string} HTML dos botões.
- */
 function renderAdminActions(reservation) {
     if (reservation.status === 'pending') {
         return `
@@ -477,7 +506,39 @@ function renderAdminActions(reservation) {
     return '---';
 }
 
-/** Desloga o usuário. */
+/**
+ * --- NOVA FUNÇÃO ---
+ * Gera o HTML para o badge de permissão de um usuário.
+ * @param {string} role A permissão ('admin' ou 'user').
+ * @returns {string} HTML do badge.
+ */
+function renderRoleBadge(role) {
+    const roleMap = {
+        'admin': { text: 'Admin', badge: 'primary' },
+        'user': { text: 'Usuário', badge: 'secondary' },
+    };
+    const info = roleMap[role] || { text: role, badge: 'light' };
+    return `<span class="badge bg-${info.badge}">${info.text}</span>`;
+}
+
+/**
+ * --- NOVA FUNÇÃO ---
+ * Gera o HTML para os botões de ação de gerenciamento de usuário.
+ * @param {object} user O objeto do usuário.
+ * @returns {string} HTML dos botões.
+ */
+function renderUserActions(user) {
+    const isCurrentUser = user.id === currentUserId;
+    const toggleRoleText = user.role === 'admin' ? 'Tornar Usuário' : 'Tornar Admin';
+    const toggleRoleIcon = user.role === 'admin' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle';
+
+    const toggleButton = `<button class="btn btn-warning btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="toggle-role" data-current-role="${user.role}" title="${toggleRoleText}" ${isCurrentUser ? 'disabled' : ''}><i class="bi ${toggleRoleIcon}"></i></button>`;
+    const deleteButton = `<button class="btn btn-danger btn-sm user-action-btn" data-user-id="${user.id}" data-action="delete" title="Excluir Usuário" ${isCurrentUser ? 'disabled' : ''}><i class="bi bi-trash"></i></button>`;
+    
+    return `${toggleButton}${deleteButton}`;
+}
+
+
 async function logout(token = null) {
     if (token) {
         try {
@@ -493,6 +554,7 @@ async function logout(token = null) {
 // --- Sistema de Notificações (Toasts) ---
 
 function createToastContainer() {
+    if (document.getElementById('toast-container')) return;
     const container = document.createElement('div');
     container.id = 'toast-container';
     container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
@@ -507,13 +569,10 @@ function showToast(message, type = 'info') {
     const toastEl = document.createElement('div');
     toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
     toastEl.setAttribute('role', 'alert');
-    toastEl.setAttribute('aria-live', 'assertive');
-    toastEl.setAttribute('aria-atomic', 'true');
-
     toastEl.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
     `;
 
