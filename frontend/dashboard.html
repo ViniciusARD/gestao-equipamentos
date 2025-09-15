@@ -24,6 +24,7 @@
                     <div class="sidebar-heading admin-heading">Admin</div>
                     <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-manage-reservations"><i class="bi bi-kanban me-2"></i> Gerir Reservas</a>
                     <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-manage-users"><i class="bi bi-people me-2"></i> Gerir Usuários</a>
+                    <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-manage-inventory"><i class="bi bi-box-seam me-2"></i> Gerir Inventário</a>
                 </div>
             </div>
         </div>
@@ -85,6 +86,39 @@
                         <div class="modal-footer pb-0">
                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                            <button type="submit" class="btn btn-primary">Confirmar Reserva</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="equipmentTypeModalLabel">Adicionar Novo Tipo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="equipmentTypeForm">
+                        <input type="hidden" id="equipmentTypeId">
+                        <div class="mb-3">
+                            <label for="typeName" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="typeName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="typeCategory" class="form-label">Categoria</label>
+                            <input type="text" class="form-control" id="typeCategory" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="typeDescription" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="typeDescription" rows="3"></textarea>
+                        </div>
+                        <div id="equipmentTypeMessage" class="mt-3"></div>
+                        <div class="modal-footer pb-0">
+                           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                           <button type="submit" class="btn btn-primary">Salvar</button>
                         </div>
                     </form>
                 </div>
