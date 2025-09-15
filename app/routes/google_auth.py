@@ -1,6 +1,8 @@
 # app/routes/google_auth.py
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from google_auth_oauthlib.flow import Flow
 from jose import jwt, JWTError
@@ -16,6 +18,9 @@ router = APIRouter(
     prefix="/google",
     tags=["Google Authentication"]
 )
+
+# --- ALTERAÇÃO 1: Inicializar o motor de templates ---
+templates = Jinja2Templates(directory="app/templates")
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 REDIRECT_URI = "http://127.0.0.1:8000/google/callback"
@@ -42,8 +47,11 @@ def google_login(token: str = Depends(get_token)):
     )
     return {"authorization_url": authorization_url}
 
-@router.get("/callback")
+# --- ALTERAÇÃO 2: Definir o response_class como HTMLResponse ---
+@router.get("/callback", response_class=HTMLResponse)
 def google_callback(
+    # --- ALTERAÇÃO 3: Adicionar o parâmetro "request" ---
+    request: Request,
     code: str = Query(...),
     state: str = Query(...),
     db: Session = Depends(get_db)
@@ -82,5 +90,9 @@ def google_callback(
     
     db.commit()
     
-    return {"message": "A sua conta Google foi conectada com sucesso! Pode fechar esta aba."}
-
+    # --- ALTERAÇÃO 4: Retornar a renderização do template em vez do JSON ---
+    message = "A sua conta Google foi conectada com sucesso! Pode fechar esta aba."
+    return templates.TemplateResponse(
+        "google_callback_success.html", 
+        {"request": request, "message": message}
+    )
