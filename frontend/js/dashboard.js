@@ -45,7 +45,7 @@ function setupEventListeners(token) {
         const navActions = {
             'nav-equipments': () => loadEquipmentsView(token),
             'nav-my-reservations': () => loadMyReservationsView(token),
-            'nav-my-account': () => loadMyAccountView(token), // NOVO
+            'nav-my-account': () => loadMyAccountView(token),
             'nav-manage-reservations': () => loadManageReservationsView(token),
             'nav-manage-users': () => loadManageUsersView(token),
             'nav-manage-inventory': () => loadManageInventoryView(token)
@@ -53,10 +53,11 @@ function setupEventListeners(token) {
         if (navActions[target.id]) {
             event.preventDefault(); setActiveNav(target); navActions[target.id]();
         }
-        
+
+        // CORREÇÃO: Os seletores de ID agora usam o caractere '#'
         const pageActions = {
-            'logoutButton': () => logout(token),
-            'menu-toggle': () => document.getElementById('wrapper').classList.toggle('toggled'),
+            '#logoutButton': () => logout(target, token), // Passa o botão para a função
+            '#menu-toggle': () => document.getElementById('wrapper').classList.toggle('toggled'),
             '.view-units-btn': () => fetchAndShowUnits(target.dataset.typeId, token),
             '.reserve-btn': () => openReserveModal(target.dataset.unitId, target.dataset.unitIdentifier),
             '.admin-action-btn': () => { event.preventDefault(); handleUpdateReservationStatus(target, token); },
@@ -64,12 +65,12 @@ function setupEventListeners(token) {
             '.inventory-action-btn': () => { event.preventDefault(); handleInventoryAction(target, token); },
             '.unit-action-btn': () => { event.preventDefault(); handleUnitAction(target, token); },
             '#cancelEditUnitBtn': () => { event.preventDefault(); resetUnitForm(); },
-            '#connectGoogleBtn': () => { event.preventDefault(); handleGoogleConnect(target, token); }, // NOVO
-            '#deleteAccountBtn': () => { event.preventDefault(); handleDeleteAccount(target, token); } // NOVO
+            '#connectGoogleBtn': () => { event.preventDefault(); handleGoogleConnect(target, token); },
+            '#deleteAccountBtn': () => { event.preventDefault(); handleDeleteAccount(target, token); }
         };
 
         for (const selector in pageActions) {
-            if (target.matches(selector) || target.id === selector.substring(1)) {
+            if (target.matches(selector)) {
                 pageActions[selector]();
                 return; // Evita múltiplas ações
             }
@@ -84,11 +85,12 @@ function setupEventListeners(token) {
             event.preventDefault(); handleEquipmentTypeSubmit(token);
         } else if (event.target.id === 'unitForm') {
             event.preventDefault(); handleUnitFormSubmit(token);
-        } else if (event.target.id === 'updateProfileForm') { // NOVO
+        } else if (event.target.id === 'updateProfileForm') {
             event.preventDefault(); handleUpdateProfile(token);
         }
     });
 }
+
 
 function setActiveNav(element) {
     document.querySelectorAll('.list-group-item').forEach(el => el.classList.remove('active'));
@@ -124,11 +126,9 @@ async function loadMyReservationsView(token) {
 }
 
 /**
- * --- NOVA VIEW ---
  * Carrega a página de gerenciamento de conta do usuário.
  */
 function loadMyAccountView(token) {
-    // CORREÇÃO APLICADA AQUI: Injeta o HTML diretamente sem usar a renderView para evitar o spinner infinito.
     const mainContent = document.getElementById('main-content');
     mainContent.innerHTML = `
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -182,7 +182,6 @@ function loadMyAccountView(token) {
 // --- Funções de Ações e Modais ---
 
 /**
- * --- NOVA FUNÇÃO ---
  * Lida com a atualização do perfil do usuário.
  * @param {string} token O token JWT.
  */
@@ -195,18 +194,18 @@ async function handleUpdateProfile(token) {
         showToast('Nenhuma alteração para salvar.', 'info');
         return;
     }
-    
+
     setButtonLoading(submitButton, true, 'Salvando...');
     try {
         const updatedUser = await apiFetch(`${API_URL}/users/me`, token, {
             method: 'PUT',
             body: { username: newUsername }
         });
-        
+
         // Atualiza os dados locais
         currentUser = updatedUser;
         document.getElementById('user-greeting').textContent = `Olá, ${updatedUser.username}!`;
-        
+
         showToast('Nome de usuário atualizado com sucesso!', 'success');
 
     } catch (e) {
@@ -219,7 +218,6 @@ async function handleUpdateProfile(token) {
 }
 
 /**
- * --- NOVA FUNÇÃO ---
  * Inicia o fluxo de conexão com a conta Google.
  * @param {HTMLButtonElement} button O botão clicado.
  * @param {string} token O token JWT.
@@ -239,7 +237,6 @@ async function handleGoogleConnect(button, token) {
 }
 
 /**
- * --- NOVA FUNÇÃO ---
  * Lida com a exclusão da conta do próprio usuário.
  * @param {HTMLButtonElement} button O botão clicado.
  * @param {string} token O token JWT.
@@ -255,7 +252,7 @@ async function handleDeleteAccount(button, token) {
     try {
         await apiFetch(`${API_URL}/users/me`, token, { method: 'DELETE' });
         showToast('Sua conta foi excluída. Você será desconectado.', 'success');
-        
+
         setTimeout(() => {
             logout(); // Desloga sem chamar a API, pois o usuário não existe mais
         }, 3000);
@@ -267,7 +264,7 @@ async function handleDeleteAccount(button, token) {
 }
 
 
-// --- Funções das Views de Admin (Sem alterações, apenas omitidas por brevidade) ---
+// --- Funções das Views de Admin ---
 async function loadManageReservationsView(token) {
     renderView(`<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom"><h1 class="h2">Gerenciar Reservas</h1></div><div id="listContainer" class="table-responsive"></div>`);
     try {
@@ -586,14 +583,22 @@ function setButtonLoading(button, isLoading, loadingText = null) {
         if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
     }
 }
-async function logout(token = null) {
-    if (token) {
-        try { await apiFetch(`${API_URL}/auth/logout`, token, { method: 'POST' }); }
-        catch (e) { console.error("Falha ao invalidar token:", e); }
+
+// MELHORIA: A função de logout agora dá feedback visual
+async function logout(button, token = null) {
+    if (token && button) {
+        setButtonLoading(button, true, 'Saindo...');
+        try {
+            await apiFetch(`${API_URL}/auth/logout`, token, { method: 'POST' });
+        } catch (e) {
+            console.error("Falha ao invalidar token:", e);
+            showToast('Não foi possível invalidar a sessão no servidor, mas você será desconectado localmente.', 'warning');
+        }
     }
     localStorage.removeItem('accessToken');
     window.location.href = 'login.html';
 }
+
 function createToastContainer() {
     if (document.getElementById('toast-container')) return;
     const container = document.createElement('div');
@@ -602,6 +607,7 @@ function createToastContainer() {
     container.style.zIndex = '1080';
     document.body.appendChild(container);
 }
+
 function showToast(message, type = 'info') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
