@@ -1,7 +1,7 @@
 // js/dashboard/events.js
 
 import { API_URL, apiFetch } from './api.js';
-import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm } from './ui.js';
+import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge } from './ui.js';
 import { loadEquipmentsView, loadMyReservationsView, loadMyAccountView, fetchAndShowUnits } from './views.js';
 import {
     loadManageReservationsView,
@@ -231,7 +231,7 @@ function populateUnitsTable(units) {
         <tr id="unit-row-${unit.id}">
             <td>${unit.id}</td>
             <td>${unit.identifier_code || 'N/A'}</td>
-            <td>${showToast(unit.status)}</td>
+            <td>${renderStatusBadge(unit.status)}</td>
             <td>
                 <button class="btn btn-secondary btn-sm me-1 unit-action-btn" data-action="edit" data-unit-id="${unit.id}" title="Editar Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-danger btn-sm unit-action-btn" data-action="delete" data-unit-id="${unit.id}" title="Excluir Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-trash"></i></button>

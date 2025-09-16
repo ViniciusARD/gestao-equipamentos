@@ -22,17 +22,20 @@ export function renderStatusBadge(status) {
 
 /**
  * Renderiza um distintivo (badge) para o nível de permissão (role).
- * @param {string} role - A permissão (user ou admin).
+ * @param {string} role - A permissão (user, requester, manager, admin).
  * @returns {string} - O HTML do badge.
  */
 export function renderRoleBadge(role) {
     const map = {
-        'admin': 'primary',
-        'user': 'secondary'
+        'admin': { bg: 'danger', text: 'Admin' },
+        'manager': { bg: 'primary', text: 'Gerente' },
+        'requester': { bg: 'success', text: 'Solicitante' },
+        'user': { bg: 'secondary', text: 'Usuário' }
     };
-    const text = role.charAt(0).toUpperCase() + role.slice(1);
-    return `<span class="badge bg-${map[role] || 'light'}">${text}</span>`;
+    const roleInfo = map[role] || { bg: 'light', text: role.charAt(0).toUpperCase() + role.slice(1) };
+    return `<span class="badge bg-${roleInfo.bg}">${roleInfo.text}</span>`;
 }
+
 
 /**
  * Renderiza um distintivo (badge) para o nível de log.

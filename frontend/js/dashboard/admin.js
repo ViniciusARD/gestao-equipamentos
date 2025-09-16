@@ -20,21 +20,42 @@ function renderAdminReservationActions(reservation) {
 
 function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
-    const toggleRoleText = user.role === 'admin' ? 'Tornar Gerente' : user.role === 'manager' ? 'Tornar Solicitante' : user.role === 'requester' ? 'Tornar Usuário' : 'Tornar Solicitante';
-    const toggleRoleIcon = user.role === 'admin' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle';
-    
-    const toggleButton = `
-        <button class="btn btn-warning btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="toggle-role" data-current-role="${user.role}" title="${toggleRoleText}" ${isCurrentUser ? 'disabled' : ''}>
-            <i class="bi ${toggleRoleIcon}"></i>
-        </button>`;
-    
+
+    // Definir a hierarquia de papéis
+    const roles = ['user', 'requester', 'manager', 'admin'];
+    const userRoleIndex = roles.indexOf(user.role);
+
+    let promoteButton = '';
+    if (userRoleIndex < roles.length - 1) { // Pode ser promovido se não for admin
+        const nextRole = roles[userRoleIndex + 1];
+        promoteButton = `
+            <button class="btn btn-success btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="promote" data-current-role="${user.role}" title="Promover para ${nextRole}" ${isCurrentUser ? 'disabled' : ''}>
+                <i class="bi bi-arrow-up-circle"></i>
+            </button>`;
+    } else {
+        promoteButton = `<button class="btn btn-success btn-sm me-1" disabled title="Já está no nível máximo"><i class="bi bi-arrow-up-circle"></i></button>`;
+    }
+
+
+    let demoteButton = '';
+    if (userRoleIndex > 0) { // Pode ser rebaixado se não for user
+        const prevRole = roles[userRoleIndex - 1];
+        demoteButton = `
+            <button class="btn btn-warning btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="demote" data-current-role="${user.role}" title="Rebaixar para ${prevRole}" ${isCurrentUser ? 'disabled' : ''}>
+                <i class="bi bi-arrow-down-circle"></i>
+            </button>`;
+    } else {
+         demoteButton = `<button class="btn btn-warning btn-sm me-1" disabled title="Já está no nível mínimo"><i class="bi bi-arrow-down-circle"></i></button>`;
+    }
+
     const deleteButton = `
         <button class="btn btn-danger btn-sm user-action-btn" data-user-id="${user.id}" data-action="delete" title="Excluir Usuário" ${isCurrentUser ? 'disabled' : ''}>
             <i class="bi bi-trash"></i>
         </button>`;
-        
-    return `${toggleButton}${deleteButton}`;
+
+    return `${promoteButton}${demoteButton}${deleteButton}`;
 }
+
 
 function renderInventoryRow(type) {
     return `
@@ -218,11 +239,30 @@ export async function handleUpdateReservationStatus(button, token) {
 export async function handleUserAction(button, token, currentUserId) {
     const { userId, action, currentRole } = button.dataset;
     if (action === 'delete' && !confirm(`Tem certeza que deseja excluir o usuário ID ${userId}?`)) return;
-    
+
     setButtonLoading(button, true);
+
+    const roles = ['user', 'requester', 'manager', 'admin'];
+    const currentRoleIndex = roles.indexOf(currentRole);
+    let newRole = '';
+
+    if (action === 'promote') {
+        if (currentRoleIndex < roles.length - 1) {
+            newRole = roles[currentRoleIndex + 1];
+        }
+    } else if (action === 'demote') {
+        if (currentRoleIndex > 0) {
+            newRole = roles[currentRoleIndex - 1];
+        }
+    }
+
     try {
-        if (action === 'toggle-role') {
-            const newRole = currentRole === 'admin' ? 'manager' : currentRole === 'manager' ? 'requester' : currentRole === 'requester' ? 'user' : 'requester';
+        if (action === 'promote' || action === 'demote') {
+            if (!newRole) {
+                showToast('Ação inválida para este nível de usuário.', 'warning');
+                setButtonLoading(button, false);
+                return;
+            }
             const updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
             const row = document.getElementById(`user-row-${updated.id}`);
             if (row) {
@@ -237,9 +277,14 @@ export async function handleUserAction(button, token, currentUserId) {
         }
     } catch (e) {
         showToast(`Erro: ${e.message}`, 'danger');
-        setButtonLoading(button, false);
+    } finally {
+        // Only set button loading to false if it's not a delete action that was successful
+        if (action !== 'delete' || document.getElementById(`user-row-${userId}`)) {
+            setButtonLoading(button, false);
+        }
     }
 }
+
 
 export async function handleEquipmentTypeSubmit(token) {
     const form = document.getElementById('equipmentTypeForm');
