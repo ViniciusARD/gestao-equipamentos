@@ -20,7 +20,7 @@ function renderAdminReservationActions(reservation) {
 
 function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
-    const toggleRoleText = user.role === 'admin' ? 'Tornar Usuário' : 'Tornar Admin';
+    const toggleRoleText = user.role === 'admin' ? 'Tornar Gerente' : user.role === 'manager' ? 'Tornar Solicitante' : user.role === 'requester' ? 'Tornar Usuário' : 'Tornar Solicitante';
     const toggleRoleIcon = user.role === 'admin' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle';
     
     const toggleButton = `
@@ -222,7 +222,7 @@ export async function handleUserAction(button, token, currentUserId) {
     setButtonLoading(button, true);
     try {
         if (action === 'toggle-role') {
-            const newRole = currentRole === 'admin' ? 'user' : 'admin';
+            const newRole = currentRole === 'admin' ? 'manager' : currentRole === 'manager' ? 'requester' : currentRole === 'requester' ? 'user' : 'requester';
             const updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
             const row = document.getElementById(`user-row-${updated.id}`);
             if (row) {

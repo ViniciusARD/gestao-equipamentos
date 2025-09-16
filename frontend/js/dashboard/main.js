@@ -28,6 +28,9 @@ async function initializeApp() {
     
     if (appState.currentUser) {
         document.getElementById('user-greeting').textContent = `Olá, ${appState.currentUser.username}!`;
+        if (appState.currentUser.role === 'manager' || appState.currentUser.role === 'admin') {
+            document.getElementById('manager-menu').classList.remove('d-none');
+        }
         if (appState.currentUser.role === 'admin') {
             document.getElementById('admin-menu').classList.remove('d-none');
         }

@@ -12,7 +12,7 @@ from app.models.google_token import GoogleOAuthToken
 from app.schemas.reservation import ReservationOut
 from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
 from app.schemas.user import UserOut
-from app.security import get_current_admin_user
+from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
 from app.models.activity_log import ActivityLog
 from app.schemas.logs import ActivityLogOut
@@ -40,9 +40,9 @@ def approve_and_create_calendar_event(db: Session, reservation: Reservation):
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Lista todas as reservas de todos os usuários."""
+    """(Manager) Lista todas as reservas de todos os usuários."""
     # 2. Aplicar Eager Loading para buscar todos os dados relacionados em uma única consulta
     reservations = (
         db.query(Reservation)
@@ -61,9 +61,9 @@ def update_reservation_status(
     update_data: ReservationStatusUpdate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Atualiza o status de uma reserva (approve, reject, return)."""
+    """(Manager) Atualiza o status de uma reserva (approve, reject, return)."""
     db_reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
     if not db_reservation:
         raise HTTPException(status_code=404, detail="Reserva não encontrada.")

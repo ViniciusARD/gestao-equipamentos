@@ -17,6 +17,8 @@ class ReservationStatusUpdate(BaseModel):
 
 class UserRoleEnum(str, Enum):
     user = "user"
+    requester = "requester"
+    manager = "manager"
     admin = "admin"
 
 class UserRoleUpdate(BaseModel):

@@ -10,7 +10,7 @@ from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.user import User
 from app.schemas.reservation import ReservationCreate, ReservationOut
-from app.security import get_current_user
+from app.security import get_current_user, get_current_requester_user
 
 router = APIRouter(
     prefix="/reservations",
@@ -21,7 +21,7 @@ router = APIRouter(
 def create_reservation(
     reservation: ReservationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_requester_user)
 ):
     """Cria uma nova solicitação de reserva para uma unidade de equipamento."""
     unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == reservation.unit_id).first()
@@ -59,7 +59,7 @@ def create_reservation(
 @router.get("/my-reservations", response_model=List[ReservationOut])
 def get_my_reservations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_requester_user)
 ):
     """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
     # 2. Aplicar Eager Loading aqui também

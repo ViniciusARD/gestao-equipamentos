@@ -14,7 +14,7 @@ from app.schemas.equipment import (
     EquipmentUnitCreate, EquipmentUnitOut, EquipmentUnitUpdate, 
     EquipmentTypeWithUnitsOut
 )
-from app.security import get_current_user, get_current_admin_user
+from app.security import get_current_user, get_current_manager_user
 from app.logging_utils import create_log # Importar a nossa função de log
 
 router = APIRouter(
@@ -28,9 +28,9 @@ router = APIRouter(
 def create_equipment_type(
     equipment_type: EquipmentTypeCreate,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Cria um novo tipo de equipamento."""
+    """(Manager) Cria um novo tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.name == equipment_type.name).first()
     if db_type:
         raise HTTPException(status_code=400, detail="Este tipo de equipamento já existe.")
@@ -41,7 +41,7 @@ def create_equipment_type(
     db.refresh(new_type)
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
     
     return new_type
 
@@ -63,9 +63,9 @@ def update_equipment_type(
     type_id: int,
     type_update: EquipmentTypeUpdate,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Atualiza os detalhes de um tipo de equipamento."""
+    """(Manager) Atualiza os detalhes de um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -78,7 +78,7 @@ def update_equipment_type(
     db.refresh(db_type)
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
     
     return db_type
 
@@ -86,9 +86,9 @@ def update_equipment_type(
 def delete_equipment_type(
     type_id: int,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Deleta um tipo de equipamento e todas as suas unidades."""
+    """(Manager) Deleta um tipo de equipamento e todas as suas unidades."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -98,7 +98,7 @@ def delete_equipment_type(
     db.commit()
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
     
     return
 
@@ -108,9 +108,9 @@ def delete_equipment_type(
 def create_equipment_unit(
     unit: EquipmentUnitCreate,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Cria uma nova unidade física para um tipo de equipamento."""
+    """(Manager) Cria uma nova unidade física para um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == unit.type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
@@ -121,7 +121,7 @@ def create_equipment_unit(
     db.refresh(new_unit)
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' (ID: {new_unit.id}) para o tipo '{db_type.name}'.")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' (ID: {new_unit.id}) para o tipo '{db_type.name}'.")
     
     return new_unit
 
@@ -135,9 +135,9 @@ def update_equipment_unit(
     unit_id: int,
     unit_update: EquipmentUnitUpdate,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Atualiza os detalhes de uma unidade de equipamento."""
+    """(Manager) Atualiza os detalhes de uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -150,7 +150,7 @@ def update_equipment_unit(
     db.refresh(db_unit)
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' atualizou a unidade ID {db_unit.id}.")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou a unidade ID {db_unit.id}.")
     
     return db_unit
 
@@ -158,9 +158,9 @@ def update_equipment_unit(
 def delete_equipment_unit(
     unit_id: int,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user)
+    manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Admin) Deleta uma unidade de equipamento."""
+    """(Manager) Deleta uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -182,6 +182,6 @@ def delete_equipment_unit(
     db.commit()
     
     # LOG DE ATIVIDADE
-    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
+    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
     
     return

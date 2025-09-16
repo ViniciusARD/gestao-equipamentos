@@ -68,6 +68,22 @@ def get_current_user(
         raise credentials_exception
     return user
 
+def get_current_requester_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in ["requester", "manager", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Permissões de solicitante são necessárias."
+        )
+    return current_user
+
+def get_current_manager_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Permissões de gerente são necessárias."
+        )
+    return current_user
+
 def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(
