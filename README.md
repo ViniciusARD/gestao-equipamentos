@@ -65,7 +65,7 @@ O sistema possui múltiplos níveis de acesso: **Usuário**, **Solicitante**, **
 
 #### Frontend
 
-  - **HTML5**, **CSS3**, **JavaScript (ES6 Modules)**: Estrutura, estilo e interatividade.
+  - **HTML5**, **CSS3**, **JavaScript**: Estrutura, estilo e interatividade.
   - **Bootstrap 5**: Framework CSS para a criação de uma interface responsiva.
   - **Bootstrap Icons**: Biblioteca de ícones.
   - **Vanilla JS**: Nenhuma biblioteca ou framework JS foi utilizado, apenas JavaScript puro para modularidade e dinamismo.
@@ -84,7 +84,7 @@ Siga os passos abaixo para configurar e executar o projeto completo (backend e f
 ### 1\. Clone o Repositório
 
 ```bash
-git clone https://github.com/SEU-USUARIO/gestao-equipamentos.git
+git clone https://github.com/ViniciusARD/gestao-equipamentos.git
 cd gestao-equipamentos
 ```
 

@@ -1,23 +1,25 @@
 # .env
 
-# Chave secreta para segurança da aplicação (sessões, tokens, etc.)
-SECRET_KEY='XXXX'
+# --- Configurações Essenciais (OBRIGATÓRIO) ---
+# Chave para segurança interna do FastAPI
+SECRET_KEY='gere_uma_chave_forte_aqui'
+# String de conexão com o seu banco de dados PostgreSQL
+DATABASE_URL='postgresql://postgres:sua_senha@localhost:5432/gestao_equipamentos_db'
+# Chave para criptografar os tokens de login (JWT)
+JWT_SECRET_KEY='gere_outra_chave_forte_diferente_aqui'
 
-# String de conexão com o banco de dados PostgreSQL
-DATABASE_URL='postgresql://postgres:XXXX@localhost:5432/gestao_equipamentos_db'
+# --- Configurações da API do Google (FUNCIONALIDADE OPCIONAL) ---
+# Sem isto, a integração com o Google Calendar não funcionará.
+# Obtenha essas chaves no Google Cloud Console.
+GOOGLE_CLIENT_ID='seu-client-id.apps.googleusercontent.com'
+GOOGLE_CLIENT_SECRET='seu-client-secret'
 
-# Chave para criptografia dos tokens JWT
-JWT_SECRET_KEY='XXXX'
-
-# Chave do Google Calendar API (XXXX@gmail.com)
-GOOGLE_CLIENT_ID='XXXX'
-GOOGLE_CLIENT_SECRET='XXXX'
-
-# --- ADICIONE AS CONFIGURAÇÕES DE EMAIL ABAIXO ---
-MAIL_USERNAME="XXXX@gmail.com"
-MAIL_PASSWORD="XXXX" #
-MAIL_FROM="XXXX@gmail.com"
-MAIL_PORT=XXX
+# --- Configurações de Email (FUNCIONALIDADE OPCIONAL) ---
+# Sem isto, a funcionalidade de "Esqueci minha senha" não funcionará.
+MAIL_USERNAME="seu_email@gmail.com"
+MAIL_PASSWORD="sua_senha_de_app_do_gmail" # IMPORTANTE: Use uma "Senha de App" se tiver 2FA
+MAIL_FROM="seu_email@gmail.com"
+MAIL_PORT=587
 MAIL_SERVER="smtp.gmail.com"
 MAIL_STARTTLS=True
 MAIL_SSL_TLS=False
