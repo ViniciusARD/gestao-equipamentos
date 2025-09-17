@@ -69,7 +69,9 @@ async function handleGlobalClick(event) {
     }
     if (target.matches('#searchUsersBtn')) {
         const searchTerm = document.getElementById('usersSearchInput').value.trim();
-        loadManageUsersView(token, appState.currentUser.id, searchTerm);
+        const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
+        const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
+        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
     }
     if (target.matches('#searchEquipmentsBtn')) {
         const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
@@ -82,6 +84,17 @@ async function handleGlobalClick(event) {
         const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
         loadMyReservationsView(token, searchTerm, status);
     }
+    if (target.matches('#searchInventoryBtn')) {
+        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
+        const category = document.getElementById('inventoryCategoryFilter').value;
+        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
+        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
+        loadManageInventoryView(token, searchTerm, category, availability);
+    }
+    if (target.matches('#applyLogsFilterBtn')) {
+        applyLogsFilter();
+    }
+
 
     // Handler para os botões de filtro de status em "Minhas Reservas"
     if (target.matches('.status-filter-btn')) {
@@ -96,6 +109,21 @@ async function handleGlobalClick(event) {
         const status = target.dataset.status;
         loadManageReservationsView(token, searchTerm, status);
     }
+    
+    // Handler para os botões de filtro de disponibilidade em "Gerir Inventário"
+    if (target.matches('.inventory-availability-filter-btn')) {
+        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
+        const category = document.getElementById('inventoryCategoryFilter').value;
+        const availability = target.dataset.availability;
+        loadManageInventoryView(token, searchTerm, category, availability);
+    }
+    
+    // Handler para os botões de filtro de permissão em "Gerir Usuários"
+    if (target.matches('.user-role-filter-btn')) {
+        const searchTerm = document.getElementById('usersSearchInput').value.trim();
+        const role = target.dataset.role;
+        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
+    }
 }
 
 async function handleGlobalChange(event) {
@@ -108,6 +136,14 @@ async function handleGlobalChange(event) {
         const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
         const category = target.value;
         loadEquipmentsView(token, searchTerm, category);
+    }
+    
+    if (target.matches('#inventoryCategoryFilter')) {
+        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
+        const category = target.value;
+        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
+        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
+        loadManageInventoryView(token, searchTerm, category, availability);
     }
 }
 
@@ -142,7 +178,9 @@ function handleGlobalKeyUp(event) {
         loadManageReservationsView(token, searchTerm, status);
     } else if (target.id === 'usersSearchInput') {
         const searchTerm = target.value.trim();
-        loadManageUsersView(token, appState.currentUser.id, searchTerm);
+        const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
+        const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
+        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
     } else if (target.id === 'equipmentsSearchInput') {
         const searchTerm = target.value.trim();
         const category = document.getElementById('equipmentsCategoryFilter').value;
@@ -152,10 +190,30 @@ function handleGlobalKeyUp(event) {
         const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
         const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
         loadMyReservationsView(token, searchTerm, status);
+    } else if (target.id === 'inventorySearchInput') {
+        const searchTerm = target.value.trim();
+        const category = document.getElementById('inventoryCategoryFilter').value;
+        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
+        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
+        loadManageInventoryView(token, searchTerm, category, availability);
+    } else if (target.id === 'logsSearchInput') {
+        applyLogsFilter();
     }
 }
 
 // --- Lógica de Handlers específicos ---
+
+function applyLogsFilter() {
+    const token = appState.token;
+    const params = {
+        search: document.getElementById('logsSearchInput').value.trim(),
+        level: document.getElementById('logsLevelFilter').value,
+        user_id: document.getElementById('logsUserFilter').value,
+        start_date: document.getElementById('logsStartDate').value,
+        end_date: document.getElementById('logsEndDate').value,
+    };
+    loadSystemLogsView(token, params);
+}
 
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');

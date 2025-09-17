@@ -60,9 +60,10 @@ function renderUserActions(user, currentUserId) {
 function renderInventoryRow(type) {
     return `
         <tr id="inventory-row-${type.id}">
-            <td>${type.id}</td>
             <td>${type.name}</td>
             <td>${type.category}</td>
+            <td class="text-center">${type.total_units}</td>
+            <td class="text-center">${type.available_units}</td>
             <td>
                 <button class="btn btn-info btn-sm me-1 text-white inventory-action-btn" data-action="view-units" data-type-id="${type.id}" data-type-name="${type.name}" title="Gerenciar Unidades"><i class="bi bi-hdd-stack"></i></button>
                 <button class="btn btn-secondary btn-sm me-1 inventory-action-btn" data-action="edit-type" data-type-id="${type.id}" title="Editar Tipo"><i class="bi bi-pencil"></i></button>
@@ -144,13 +145,32 @@ export async function loadManageReservationsView(token, searchTerm = '', statusF
 }
 
 
-export async function loadManageUsersView(token, currentUserId, searchTerm = '') {
+export async function loadManageUsersView(token, currentUserId, searchTerm = '', roleFilter = 'all') {
+    const roleFilters = [
+        { key: 'all', text: 'Todos' },
+        { key: 'user', text: 'Usuários' },
+        { key: 'requester', text: 'Solicitantes' },
+        { key: 'manager', text: 'Gerentes' },
+        { key: 'admin', text: 'Admins' }
+    ];
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerenciar Usuários</h1>
-            <div class="input-group w-50">
-                <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome, email, permissão..." value="${searchTerm}">
-                <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
+        </div>
+        <div class="row mb-4">
+            <div class="col-lg-7 mb-2 mb-lg-0">
+                <div class="input-group">
+                    <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${searchTerm}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="btn-group w-100" role="group">
+                    ${roleFilters.map(filter => `
+                        <button type="button" class="btn ${roleFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
+                    `).join('')}
+                </div>
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
@@ -163,9 +183,12 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '')
         if (searchTerm) {
             url.searchParams.append('search', searchTerm);
         }
+        if (roleFilter && roleFilter !== 'all') {
+            url.searchParams.append('role', roleFilter);
+        }
         const users = await apiFetch(url, token);
         if (users.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhum usuário encontrado.</p>';
+            container.innerHTML = '<p class="text-muted text-center">Nenhum usuário encontrado com os filtros aplicados.</p>';
             return;
         }
         container.innerHTML = `
@@ -192,25 +215,77 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '')
 }
 
 
-export async function loadManageInventoryView(token) {
+export async function loadManageInventoryView(token, searchTerm = '', categoryFilter = 'all', availabilityFilter = 'all') {
+    // Busca todas as categorias para popular o dropdown de filtro
+    const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
+    const categories = [...new Set(allTypesForCategories.map(type => type.category))].sort();
+
+    const availabilityFilters = [
+        { key: 'all', text: 'Todos' },
+        { key: 'available', text: 'Disponíveis' },
+        { key: 'unavailable', text: 'Indisponíveis' }
+    ];
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerenciar Inventário</h1>
             <button class="btn btn-primary inventory-action-btn" data-action="create-type"><i class="bi bi-plus-circle me-2"></i>Adicionar Tipo</button>
         </div>
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-2 mb-lg-0">
+                <div class="input-group">
+                    <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria..." value="${searchTerm}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchInventoryBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-3 mb-2 mb-lg-0">
+                <select id="inventoryCategoryFilter" class="form-select">
+                    <option value="all">Todas as categorias</option>
+                    ${categories.map(cat => `<option value="${cat}" ${categoryFilter === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <div class="btn-group w-100" role="group">
+                    ${availabilityFilters.map(filter => `
+                        <button type="button" class="btn ${availabilityFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} inventory-availability-filter-btn" data-availability="${filter.key}">${filter.text}</button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
         <div id="listContainer" class="table-responsive"></div>
     `);
+    
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
     try {
-        const types = await apiFetch(`${API_URL}/equipments/types`, token);
-        const container = document.getElementById('listContainer');
+        const url = new URL(`${API_URL}/equipments/types`);
+        if (searchTerm) {
+            url.searchParams.append('search', searchTerm);
+        }
+        if (categoryFilter && categoryFilter !== 'all') {
+            url.searchParams.append('category', categoryFilter);
+        }
+        if (availabilityFilter && availabilityFilter !== 'all') {
+            url.searchParams.append('availability', availabilityFilter);
+        }
+
+        const types = await apiFetch(url.toString(), token);
+
         if (types.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhum tipo de equipamento cadastrado.</p>';
+            container.innerHTML = '<p class="text-muted text-center">Nenhum tipo de equipamento encontrado com os filtros aplicados.</p>';
             return;
         }
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
-                    <tr><th>ID</th><th>Nome</th><th>Categoria</th><th>Ações</th></tr>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Categoria</th>
+                        <th class="text-center">Total Unidades</th>
+                        <th class="text-center">Disponíveis</th>
+                        <th>Ações</th>
+                    </tr>
                 </thead>
                 <tbody id="inventory-table-body">
                     ${types.map(type => renderInventoryRow(type)).join('')}
@@ -222,39 +297,86 @@ export async function loadManageInventoryView(token) {
     }
 }
 
-export async function loadSystemLogsView(token) {
+
+export async function loadSystemLogsView(token, params = {}) {
+    // Fetch all users to populate the filter dropdown
+    const users = await apiFetch(`${API_URL}/admin/users`, token, { limit: 1000 }); // Get a good number of users
+    const userMap = users.reduce((map, user) => {
+        map[user.id] = user.username;
+        return map;
+    }, {});
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Logs do Sistema</h1>
         </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <input type="search" id="logsSearchInput" class="form-control" placeholder="Buscar na mensagem do log..." value="${params.search || ''}">
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <select id="logsLevelFilter" class="form-select">
+                            <option value="all" ${!params.level || params.level === 'all' ? 'selected' : ''}>Todos os Níveis</option>
+                            <option value="INFO" ${params.level === 'INFO' ? 'selected' : ''}>Info</option>
+                            <option value="WARNING" ${params.level === 'WARNING' ? 'selected' : ''}>Warning</option>
+                            <option value="ERROR" ${params.level === 'ERROR' ? 'selected' : ''}>Error</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <select id="logsUserFilter" class="form-select">
+                            <option value="" ${!params.user_id ? 'selected' : ''}>Todos os Usuários</option>
+                            ${users.map(u => `<option value="${u.id}" ${params.user_id == u.id ? 'selected' : ''}>${u.username}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="logsStartDate" class="form-label small">Data Início</label>
+                        <input type="date" id="logsStartDate" class="form-control" value="${params.start_date || ''}">
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="logsEndDate" class="form-label small">Data Fim</label>
+                        <input type="date" id="logsEndDate" class="form-control" value="${params.end_date || ''}">
+                    </div>
+                    <div class="col-lg-6 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" id="applyLogsFilterBtn"><i class="bi bi-funnel-fill me-2"></i>Aplicar Filtros</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div id="listContainer" class="table-responsive"></div>
     `);
-    try {
-        const users = await apiFetch(`${API_URL}/admin/users`, token);
-        const userMap = users.reduce((map, user) => {
-            map[user.id] = user.username;
-            return map;
-        }, {});
 
-        const logs = await apiFetch(`${API_URL}/admin/logs`, token);
-        const container = document.getElementById('listContainer');
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
+    try {
+        const url = new URL(`${API_URL}/admin/logs`);
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.level && params.level !== 'all') url.searchParams.append('level', params.level);
+        if (params.user_id) url.searchParams.append('user_id', params.user_id);
+        if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
+        if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
+
+        const logs = await apiFetch(url, token);
+        
         if (logs.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhum log de atividade registrado.</p>';
+            container.innerHTML = '<p class="text-muted text-center">Nenhum log encontrado com os filtros aplicados.</p>';
             return;
         }
 
         container.innerHTML = `
-            <table class="table table-striped table-hover">
+            <table class="table table-striped table-hover table-sm">
                 <thead class="table-dark">
                     <tr><th>Data</th><th>Usuário</th><th>Nível</th><th>Mensagem</th></tr>
                 </thead>
                 <tbody>
                     ${logs.map(log => `
                         <tr>
-                            <td>${new Date(log.created_at).toLocaleString('pt-BR')}</td>
+                            <td class="text-nowrap">${new Date(log.created_at).toLocaleString('pt-BR')}</td>
                             <td>${log.user_id ? userMap[log.user_id] || `ID ${log.user_id}` : 'Sistema'}</td>
                             <td>${renderLogLevelBadge(log.level)}</td>
-                            <td>${log.message}</td>
+                            <td style="word-break: break-all;">${log.message}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -264,6 +386,7 @@ export async function loadSystemLogsView(token) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
 
 // --- Funções de Manipulação de Eventos (Handlers) de Admin ---
 
@@ -352,15 +475,12 @@ export async function handleEquipmentTypeSubmit(token) {
         const url = typeId ? `${API_URL}/equipments/types/${typeId}` : `${API_URL}/equipments/types`;
         const savedType = await apiFetch(url, token, { method, body: typeData });
         
-        const newRowHtml = renderInventoryRow(savedType);
-        if (typeId) {
-            document.getElementById(`inventory-row-${typeId}`).outerHTML = newRowHtml;
-        } else {
-            document.getElementById('inventory-table-body').insertAdjacentHTML('beforeend', newRowHtml);
-        }
-        
         showToast(`Tipo ${typeId ? 'atualizado' : 'criado'}!`, 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+        
+        // Recarrega a view de inventário para mostrar a lista atualizada
+        loadManageInventoryView(token);
+
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     } finally {

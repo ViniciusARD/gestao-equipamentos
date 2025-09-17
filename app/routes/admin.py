@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, 
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import or_
 from typing import List, Optional
+from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
@@ -107,22 +108,26 @@ def update_reservation_status(
 def list_users(
     db: Session = Depends(get_db), 
     admin_user: User = Depends(get_current_admin_user),
-    search: Optional[str] = None,
+    search: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
     skip: int = 0,
     limit: int = 100
 ):
-    """(Admin) Lista todos os usuários cadastrados, com busca e paginação."""
+    """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
     query = db.query(User)
     if search:
         search_term = f"%{search}%"
         query = query.filter(
             or_(
                 User.username.ilike(search_term),
-                User.email.ilike(search_term),
-                User.role.ilike(search_term)
+                User.email.ilike(search_term)
             )
         )
-    users = query.offset(skip).limit(limit).all()
+    
+    if role and role != "all":
+        query = query.filter(User.role == role)
+
+    users = query.order_by(User.username).offset(skip).limit(limit).all()
     return users
 
 
@@ -169,9 +174,31 @@ def set_user_role(
 def get_activity_logs(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user),
+    search: Optional[str] = Query(None),
+    level: Optional[str] = Query(None),
+    user_id: Optional[int] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
     skip: int = 0,
     limit: int = 100
 ):
-    """(Admin) Lista os logs de atividade da aplicação, com paginação."""
-    logs = db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit).all()
+    """(Admin) Lista os logs de atividade da aplicação, com filtros avançados e paginação."""
+    query = db.query(ActivityLog)
+
+    if search:
+        query = query.filter(ActivityLog.message.ilike(f"%{search}%"))
+    
+    if level and level != "all":
+        query = query.filter(ActivityLog.level == level.upper())
+
+    if user_id:
+        query = query.filter(ActivityLog.user_id == user_id)
+
+    if start_date:
+        query = query.filter(ActivityLog.created_at >= start_date)
+
+    if end_date:
+        query = query.filter(ActivityLog.created_at <= end_date)
+
+    logs = query.order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit).all()
     return logs

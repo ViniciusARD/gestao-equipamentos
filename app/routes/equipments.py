@@ -50,14 +50,18 @@ def list_equipment_types(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     search: Optional[str] = Query(None, alias="search"),
-    category: Optional[str] = Query(None, alias="category")
+    category: Optional[str] = Query(None, alias="category"),
+    availability: Optional[str] = Query(None, alias="availability") # Novo filtro
 ):
     """(Usuários Autenticados) Lista todos os tipos de equipamentos com estatísticas de unidades."""
+    
+    available_units_subquery = func.sum(case((EquipmentUnit.status == 'available', 1), else_=0))
+    
     query = (
         db.query(
             EquipmentType,
             func.count(EquipmentUnit.id).label("total_units"),
-            func.sum(case((EquipmentUnit.status == 'available', 1), else_=0)).label("available_units")
+            available_units_subquery.label("available_units")
         )
         .outerjoin(EquipmentUnit, EquipmentType.id == EquipmentUnit.type_id)
     )
@@ -74,15 +78,19 @@ def list_equipment_types(
 
     if category and category != "all":
         query = query.filter(EquipmentType.category == category)
+    
+    # Adicionando o agrupamento antes de filtrar pela agregação
+    query = query.group_by(EquipmentType.id)
+
+    # Novo filtro de disponibilidade
+    if availability == "available":
+        query = query.having(available_units_subquery > 0)
+    elif availability == "unavailable":
+        query = query.having(available_units_subquery == 0)
 
 
-    results = (
-        query
-        .group_by(EquipmentType.id)
-        .order_by(EquipmentType.name)
-        .all()
-    )
-
+    results = query.order_by(EquipmentType.name).all()
+    
     # Monta a resposta no formato do Pydantic
     stats_out = []
     for type_obj, total_units, available_units in results:
@@ -119,12 +127,12 @@ def update_equipment_type(
     update_data = type_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_type, key, value)
-
+    
     db.commit()
     db.refresh(db_type)
-
+    
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
-
+    
     return db_type
 
 @router.delete("/types/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -137,13 +145,13 @@ def delete_equipment_type(
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
-
+    
     type_name = db_type.name
     db.delete(db_type)
     db.commit()
-
+    
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
-
+    
     return
 
 # --- Rotas para UNIDADES de Equipamento ---
@@ -163,9 +171,9 @@ def create_equipment_unit(
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
-
+    
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' para o tipo '{db_type.name}'.")
-
+    
     return new_unit
 
 @router.get("/units", response_model=List[EquipmentUnitOut])
@@ -188,12 +196,12 @@ def update_equipment_unit(
     update_data = unit_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_unit, key, value)
-
+    
     db.commit()
     db.refresh(db_unit)
-
+    
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou a unidade ID {db_unit.id}.")
-
+    
     return db_unit
 
 @router.delete("/units/{unit_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -206,31 +214,31 @@ def delete_equipment_unit(
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
-
+        
     active_reservation = db.query(Reservation).filter(
         Reservation.unit_id == unit_id,
         Reservation.status.in_(['pending', 'approved'])
     ).first()
-
+    
     if active_reservation:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Não é possível deletar a unidade. Ela está associada à reserva ativa ID {active_reservation.id}."
         )
-
+    
     unit_identifier = db_unit.identifier_code or db_unit.id
     db.delete(db_unit)
     db.commit()
-
+    
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
-
+    
     return
 
 # --- Rota de Estatísticas ---
 @router.get("/stats/popular", response_model=List[EquipmentTypeOut])
 def get_popular_equipment_types(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Retorna os 5 tipos de equipamentos mais reservados."""
-
+    
     # Subconsulta para contar as reservas por tipo de equipamento
     popular_types_subquery = (
         db.query(
