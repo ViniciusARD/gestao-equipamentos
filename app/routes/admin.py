@@ -1,13 +1,15 @@
 # app/routes/admin.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session, joinedload # 1. Importar joinedload
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from sqlalchemy.orm import Session, joinedload, contains_eager
+from sqlalchemy import or_
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.user import User
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
+from app.models.equipment_type import EquipmentType
 from app.models.google_token import GoogleOAuthToken
 from app.schemas.reservation import ReservationOut
 from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
@@ -36,24 +38,38 @@ def approve_and_create_calendar_event(db: Session, reservation: Reservation):
     else:
         print(f"BACKGROUND TASK INFO: Usuário {user_to_notify.email} não conectou a conta Google.")
 
-# --- ROTA DE LISTAGEM OTIMIZADA ---
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
     db: Session = Depends(get_db),
-    manager_user: User = Depends(get_current_manager_user)
+    manager_user: User = Depends(get_current_manager_user),
+    search: Optional[str] = None
 ):
-    """(Manager) Lista todas as reservas de todos os usuários."""
-    # 2. Aplicar Eager Loading para buscar todos os dados relacionados em uma única consulta
-    reservations = (
+    """(Manager) Lista todas as reservas, com filtro de busca opcional."""
+    query = (
         db.query(Reservation)
+        .join(Reservation.user)
+        .join(Reservation.equipment_unit)
+        .join(EquipmentUnit.equipment_type)
         .options(
             joinedload(Reservation.user),
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
         )
-        .order_by(Reservation.created_at.desc())
-        .all()
     )
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+                EquipmentType.name.ilike(search_term),
+                EquipmentUnit.identifier_code.ilike(search_term)
+            )
+        )
+    
+    reservations = query.order_by(Reservation.created_at.desc()).all()
     return reservations
+
 
 @router.patch("/reservations/{reservation_id}", response_model=ReservationOut)
 def update_reservation_status(
@@ -83,15 +99,28 @@ def update_reservation_status(
     
     return db_reservation
 
-# --- Rotas de Gerenciamento de Usuários (sem alterações) ---
-
 @router.get("/users", response_model=List[UserOut])
 def list_users(
     db: Session = Depends(get_db), 
-    admin_user: User = Depends(get_current_admin_user)
+    admin_user: User = Depends(get_current_admin_user),
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100
 ):
-    """(Admin) Lista todos os usuários cadastrados no sistema."""
-    return db.query(User).all()
+    """(Admin) Lista todos os usuários cadastrados, com busca e paginação."""
+    query = db.query(User)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+                User.role.ilike(search_term)
+            )
+        )
+    users = query.offset(skip).limit(limit).all()
+    return users
+
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user_by_admin(
@@ -118,7 +147,7 @@ def set_user_role(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user)
 ):
-    """(Admin) Define a permissão (role) de um usuário como 'user' ou 'admin'."""
+    """(Admin) Define a permissão (role) de um usuário."""
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
@@ -139,6 +168,6 @@ def get_activity_logs(
     skip: int = 0,
     limit: int = 100
 ):
-    """(Admin) Lista os logs de atividade da aplicação, dos mais recentes para os mais antigos."""
+    """(Admin) Lista os logs de atividade da aplicação, com paginação."""
     logs = db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit).all()
     return logs

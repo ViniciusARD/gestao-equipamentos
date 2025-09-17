@@ -4,7 +4,98 @@ import { API_URL, apiFetch } from './api.js';
 import { renderView, renderStatusBadge, showToast } from './ui.js';
 
 /**
- * Carrega a view principal de listagem de equipamentos.
+ * Carrega a nova view principal do dashboard.
+ * @param {string} token - O token de autorização.
+ */
+export async function loadDashboardHomeView(token) {
+    renderView(`
+        <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Início</h1>
+        </div>
+        <div id="dashboardContainer" class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-event me-2"></i> Suas Próximas Reservas
+                    </div>
+                    <div class="card-body" id="upcomingReservationsContainer">
+                        <div class="text-center"><div class="spinner-border"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-star-fill me-2"></i> Equipamentos Mais Populares
+                    </div>
+                    <div class="card-body" id="popularEquipmentContainer">
+                        <div class="text-center"><div class="spinner-border"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // Carrega os dados para os cards
+    loadUpcomingReservations(token);
+    loadPopularEquipment(token);
+}
+
+
+async function loadUpcomingReservations(token) {
+    const container = document.getElementById('upcomingReservationsContainer');
+    try {
+        const reservations = await apiFetch(`${API_URL}/reservations/upcoming`, token);
+        if (reservations.length === 0) {
+            container.innerHTML = '<p class="text-muted">Você não possui reservas futuras.</p>';
+            return;
+        }
+        container.innerHTML = `
+            <ul class="list-group list-group-flush">
+                ${reservations.map(res => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${res.equipment_unit.equipment_type.name}</strong>
+                            <small class="d-block text-muted">
+                                ${new Date(res.start_time).toLocaleString('pt-BR')} até ${new Date(res.end_time).toLocaleString('pt-BR')}
+                            </small>
+                        </div>
+                        ${renderStatusBadge(res.status)}
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+async function loadPopularEquipment(token) {
+    const container = document.getElementById('popularEquipmentContainer');
+    try {
+        const popular = await apiFetch(`${API_URL}/equipments/stats/popular`, token);
+        if (popular.length === 0) {
+            container.innerHTML = '<p class="text-muted">Ainda não há dados de popularidade.</p>';
+            return;
+        }
+        container.innerHTML = `
+            <ul class="list-group list-group-flush">
+                ${popular.map(type => `
+                    <li class="list-group-item">
+                        <strong>${type.name}</strong>
+                        <small class="d-block text-muted">${type.category}</small>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+
+/**
+ * Carrega a view de listagem de equipamentos.
  * @param {string} token - O token de autorização.
  */
 export async function loadEquipmentsView(token) {
@@ -28,7 +119,12 @@ export async function loadEquipmentsView(token) {
                         <h5 class="card-title">${type.name}</h5>
                         <h6 class="card-subtitle mb-2 text-muted">${type.category}</h6>
                         <p class="card-text flex-grow-1">${type.description || 'Sem descrição.'}</p>
-                        <button class="btn btn-outline-primary mt-auto view-units-btn" data-type-id="${type.id}">Ver Unidades</button>
+                        <div class="mt-auto">
+                            <span class="badge bg-light text-dark">
+                                ${type.available_units} de ${type.total_units} disponíveis
+                            </span>
+                            <button class="btn btn-outline-primary float-end view-units-btn" data-type-id="${type.id}">Ver Unidades</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -90,8 +186,7 @@ export async function loadMyReservationsView(token) {
  * @param {object} currentUser - O objeto do usuário logado.
  */
 export function loadMyAccountView(currentUser) {
-    const mainContent = document.getElementById('main-content');
-    mainContent.innerHTML = `
+    renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Minha Conta</h1>
         </div>
@@ -136,8 +231,9 @@ export function loadMyAccountView(currentUser) {
                 </div>
             </div>
         </div>
-    `;
+    `);
 }
+
 
 /**
  * Busca e exibe as unidades de um tipo de equipamento em um modal.

@@ -2,19 +2,15 @@
 
 import { API_URL, apiFetch, fetchUserData } from './api.js';
 import { createToastContainer, setButtonLoading, showToast } from './ui.js';
-import { loadEquipmentsView } from './views.js';
+import { loadDashboardHomeView } from './views.js';
 import { initializeEvents } from './events.js';
 
-// Estado global da aplicação
 const appState = {
     token: null,
     currentUser: null,
-    logout: handleLogout // Adiciona a função de logout ao estado
+    logout: handleLogout
 };
 
-/**
- * Função de inicialização da aplicação no dashboard.
- */
 async function initializeApp() {
     appState.token = localStorage.getItem('accessToken');
     if (!appState.token) {
@@ -35,21 +31,15 @@ async function initializeApp() {
             document.getElementById('admin-menu').classList.remove('d-none');
         }
         
-        // Inicializa os ouvintes de eventos globais
         initializeEvents(appState);
         
-        // Carrega a view inicial
-        loadEquipmentsView(appState.token);
+        // Carrega a nova view inicial do dashboard
+        loadDashboardHomeView(appState.token);
     } else {
-        // Se não conseguir buscar o usuário, desloga
         handleLogout();
     }
 }
 
-/**
- * Lida com o processo de logout do usuário.
- * @param {HTMLElement|null} button - O botão de logout, se disponível.
- */
 async function handleLogout(button = null) {
     if (appState.token && button) {
         setButtonLoading(button, true, 'Saindo...');
@@ -64,5 +54,4 @@ async function handleLogout(button = null) {
     window.location.href = 'login.html';
 }
 
-// Inicia a aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', initializeApp);

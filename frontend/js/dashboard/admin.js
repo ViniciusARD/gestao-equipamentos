@@ -74,18 +74,28 @@ function renderInventoryRow(type) {
 
 // --- Funções de Carregamento de Views de Admin ---
 
-export async function loadManageReservationsView(token) {
+export async function loadManageReservationsView(token, searchTerm = '') {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerenciar Reservas</h1>
+            <div class="input-group w-50">
+                <input type="search" id="reservationsSearchInput" class="form-control" placeholder="Buscar por usuário, equipamento..." value="${searchTerm}">
+                <button class="btn btn-outline-secondary" type="button" id="searchReservationsBtn"><i class="bi bi-search"></i></button>
+            </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
     `);
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
     try {
-        const reservations = await apiFetch(`${API_URL}/admin/reservations`, token);
-        const container = document.getElementById('listContainer');
+        const url = new URL(`${API_URL}/admin/reservations`);
+        if (searchTerm) {
+            url.searchParams.append('search', searchTerm);
+        }
+        const reservations = await apiFetch(url, token);
         if (reservations.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhuma reserva no sistema.</p>';
+            container.innerHTML = '<p class="text-muted">Nenhuma reserva encontrada.</p>';
             return;
         }
         container.innerHTML = `
@@ -107,20 +117,34 @@ export async function loadManageReservationsView(token) {
             </table>
         `;
     } catch (e) {
-        document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
 
-export async function loadManageUsersView(token, currentUserId) {
+export async function loadManageUsersView(token, currentUserId, searchTerm = '') {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerenciar Usuários</h1>
+            <div class="input-group w-50">
+                <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome, email, permissão..." value="${searchTerm}">
+                <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
+            </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
     `);
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
     try {
-        const users = await apiFetch(`${API_URL}/admin/users`, token);
-        const container = document.getElementById('listContainer');
+        const url = new URL(`${API_URL}/admin/users`);
+        if (searchTerm) {
+            url.searchParams.append('search', searchTerm);
+        }
+        const users = await apiFetch(url, token);
+        if (users.length === 0) {
+            container.innerHTML = '<p class="text-muted">Nenhum usuário encontrado.</p>';
+            return;
+        }
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
@@ -140,9 +164,10 @@ export async function loadManageUsersView(token, currentUserId) {
             </table>
         `;
     } catch (e) {
-        document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
 
 export async function loadManageInventoryView(token) {
     renderView(`

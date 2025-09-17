@@ -2,7 +2,7 @@
 
 import { API_URL, apiFetch } from './api.js';
 import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge } from './ui.js';
-import { loadEquipmentsView, loadMyReservationsView, loadMyAccountView, fetchAndShowUnits } from './views.js';
+import { loadDashboardHomeView, loadEquipmentsView, loadMyReservationsView, loadMyAccountView, fetchAndShowUnits } from './views.js';
 import {
     loadManageReservationsView,
     loadManageUsersView,
@@ -19,6 +19,7 @@ export function initializeEvents(state) {
     appState = state;
     document.body.addEventListener('click', handleGlobalClick);
     document.body.addEventListener('submit', handleGlobalSubmit);
+    document.body.addEventListener('keyup', handleGlobalKeyUp);
 }
 
 // --- Funções de Manipulação de Eventos (Handlers) ---
@@ -29,8 +30,8 @@ async function handleGlobalClick(event) {
 
     const token = appState.token;
 
-    // Navegação
     const navActions = {
+        'nav-dashboard': () => loadDashboardHomeView(token),
         'nav-equipments': () => loadEquipmentsView(token),
         'nav-my-reservations': () => loadMyReservationsView(token),
         'nav-my-account': () => loadMyAccountView(appState.currentUser),
@@ -46,38 +47,26 @@ async function handleGlobalClick(event) {
         navActions[target.id]();
     }
 
-    // Ações na página
     if (target.matches('#logoutButton')) appState.logout(target);
     if (target.matches('#menu-toggle')) document.getElementById('wrapper').classList.toggle('toggled');
     if (target.matches('.view-units-btn')) fetchAndShowUnits(target.dataset.typeId, token);
     if (target.matches('.reserve-btn')) openReserveModal(target.dataset.unitId, target.dataset.unitIdentifier);
-    if (target.matches('.admin-action-btn')) {
-        event.preventDefault();
-        handleUpdateReservationStatus(target, token);
+    if (target.matches('.admin-action-btn')) handleUpdateReservationStatus(target, token);
+    if (target.matches('.user-action-btn')) handleUserAction(target, token, appState.currentUser.id);
+    if (target.matches('.inventory-action-btn')) handleInventoryAction(target, token);
+    if (target.matches('.unit-action-btn')) handleUnitAction(target, token);
+    if (target.matches('#cancelEditUnitBtn')) resetUnitForm();
+    if (target.matches('#connectGoogleBtn')) handleGoogleConnect(target, token);
+    if (target.matches('#deleteAccountBtn')) handleDeleteAccount(target, token);
+
+    // Handlers para os botões de busca
+    if (target.matches('#searchReservationsBtn')) {
+        const searchTerm = document.getElementById('reservationsSearchInput').value.trim();
+        loadManageReservationsView(token, searchTerm);
     }
-    if (target.matches('.user-action-btn')) {
-        event.preventDefault();
-        handleUserAction(target, token, appState.currentUser.id);
-    }
-    if (target.matches('.inventory-action-btn')) {
-        event.preventDefault();
-        handleInventoryAction(target, token);
-    }
-    if (target.matches('.unit-action-btn')) {
-        event.preventDefault();
-        handleUnitAction(target, token);
-    }
-    if (target.matches('#cancelEditUnitBtn')) {
-        event.preventDefault();
-        resetUnitForm();
-    }
-    if (target.matches('#connectGoogleBtn')) {
-        event.preventDefault();
-        handleGoogleConnect(target, token);
-    }
-    if (target.matches('#deleteAccountBtn')) {
-        event.preventDefault();
-        handleDeleteAccount(target, token);
+    if (target.matches('#searchUsersBtn')) {
+        const searchTerm = document.getElementById('usersSearchInput').value.trim();
+        loadManageUsersView(token, appState.currentUser.id, searchTerm);
     }
 }
 
@@ -98,6 +87,20 @@ async function handleGlobalSubmit(event) {
     }
 }
 
+function handleGlobalKeyUp(event) {
+    if (event.key !== 'Enter') return;
+
+    const target = event.target;
+    const token = appState.token;
+
+    if (target.id === 'reservationsSearchInput') {
+        const searchTerm = target.value.trim();
+        loadManageReservationsView(token, searchTerm);
+    } else if (target.id === 'usersSearchInput') {
+        const searchTerm = target.value.trim();
+        loadManageUsersView(token, appState.currentUser.id, searchTerm);
+    }
+}
 
 // --- Lógica de Handlers específicos ---
 
@@ -152,7 +155,7 @@ async function handleUpdateProfile(token) {
             body: { username: newUsername }
         });
 
-        appState.currentUser = updatedUser; // Atualiza o estado global
+        appState.currentUser = updatedUser;
         document.getElementById('user-greeting').textContent = `Olá, ${updatedUser.username}!`;
         showToast('Nome de usuário atualizado com sucesso!', 'success');
 
@@ -208,7 +211,7 @@ async function handleInventoryAction(button, token) {
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         populateUnitsTable(type.units);
     } else if (action === 'delete-type') {
-        if (!confirm('Deseja excluir este tipo? Todas as unidades e reservas associadas também serão removidas.')) return;
+        if (!confirm('Deseja excluir este tipo? Todas as unidades associadas também serão removidas.')) return;
         setButtonLoading(button, true);
         try {
             await apiFetch(`${API_URL}/equipments/types/${typeId}`, token, { method: 'DELETE' });
@@ -256,7 +259,8 @@ async function handleUnitFormSubmit(token) {
     try {
         const method = unitId ? 'PUT' : 'POST';
         const url = unitId ? `${API_URL}/equipments/units/${unitId}` : `${API_URL}/equipments/units`;
-        await apiFetch(url, token, { method, body: unitData });
+        const bodyData = unitId ? { identifier_code: unitData.identifier_code, status: unitData.status } : unitData;
+        await apiFetch(url, token, { method, body: bodyData });
         showToast(`Unidade ${unitId ? 'atualizada' : 'criada'}!`, 'success');
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         populateUnitsTable(type.units);

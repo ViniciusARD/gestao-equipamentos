@@ -1,9 +1,9 @@
 # app/routes/reservations.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload # 1. Importar joinedload
+from sqlalchemy.orm import Session, joinedload
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.reservation import Reservation
@@ -55,14 +55,12 @@ def create_reservation(
     db.refresh(new_reservation)
     return new_reservation
 
-# --- ROTA DE LISTAGEM OTIMIZADA ---
 @router.get("/my-reservations", response_model=List[ReservationOut])
 def get_my_reservations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user)
 ):
     """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
-    # 2. Aplicar Eager Loading aqui também
     reservations = (
         db.query(Reservation)
         .filter(Reservation.user_id == current_user.id)
@@ -71,6 +69,30 @@ def get_my_reservations(
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
         )
         .order_by(Reservation.created_at.desc())
+        .all()
+    )
+    return reservations
+
+@router.get("/upcoming", response_model=List[ReservationOut])
+def get_my_upcoming_reservations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_requester_user)
+):
+    """Retorna as próximas 3 reservas aprovadas e futuras do usuário."""
+    now = datetime.now(timezone.utc)
+    reservations = (
+        db.query(Reservation)
+        .filter(
+            Reservation.user_id == current_user.id,
+            Reservation.status == 'approved',
+            Reservation.start_time > now
+        )
+        .options(
+            joinedload(Reservation.user),
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        )
+        .order_by(Reservation.start_time.asc())
+        .limit(3)
         .all()
     )
     return reservations
