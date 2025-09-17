@@ -63,7 +63,9 @@ async function handleGlobalClick(event) {
     // Handlers para os botões de busca
     if (target.matches('#searchReservationsBtn')) {
         const searchTerm = document.getElementById('reservationsSearchInput').value.trim();
-        loadManageReservationsView(token, searchTerm);
+        const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
+        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
+        loadManageReservationsView(token, searchTerm, status);
     }
     if (target.matches('#searchUsersBtn')) {
         const searchTerm = document.getElementById('usersSearchInput').value.trim();
@@ -73,6 +75,26 @@ async function handleGlobalClick(event) {
         const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
         const category = document.getElementById('equipmentsCategoryFilter').value;
         loadEquipmentsView(token, searchTerm, category);
+    }
+    if (target.matches('#searchMyReservationsBtn')) {
+        const searchTerm = document.getElementById('myReservationsSearchInput').value.trim();
+        const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
+        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
+        loadMyReservationsView(token, searchTerm, status);
+    }
+
+    // Handler para os botões de filtro de status em "Minhas Reservas"
+    if (target.matches('.status-filter-btn')) {
+        const searchTerm = document.getElementById('myReservationsSearchInput').value.trim();
+        const status = target.dataset.status;
+        loadMyReservationsView(token, searchTerm, status);
+    }
+
+    // Handler para os botões de filtro de status em "Gerir Reservas"
+    if (target.matches('.admin-status-filter-btn')) {
+        const searchTerm = document.getElementById('reservationsSearchInput').value.trim();
+        const status = target.dataset.status;
+        loadManageReservationsView(token, searchTerm, status);
     }
 }
 
@@ -115,7 +137,9 @@ function handleGlobalKeyUp(event) {
 
     if (target.id === 'reservationsSearchInput') {
         const searchTerm = target.value.trim();
-        loadManageReservationsView(token, searchTerm);
+        const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
+        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
+        loadManageReservationsView(token, searchTerm, status);
     } else if (target.id === 'usersSearchInput') {
         const searchTerm = target.value.trim();
         loadManageUsersView(token, appState.currentUser.id, searchTerm);
@@ -123,6 +147,11 @@ function handleGlobalKeyUp(event) {
         const searchTerm = target.value.trim();
         const category = document.getElementById('equipmentsCategoryFilter').value;
         loadEquipmentsView(token, searchTerm, category);
+    } else if (target.id === 'myReservationsSearchInput') {
+        const searchTerm = target.value.trim();
+        const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
+        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
+        loadMyReservationsView(token, searchTerm, status);
     }
 }
 

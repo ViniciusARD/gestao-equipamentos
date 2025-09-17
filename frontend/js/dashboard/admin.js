@@ -74,13 +74,32 @@ function renderInventoryRow(type) {
 
 // --- Funções de Carregamento de Views de Admin ---
 
-export async function loadManageReservationsView(token, searchTerm = '') {
+export async function loadManageReservationsView(token, searchTerm = '', statusFilter = 'all') {
+    const statusFilters = [
+        { key: 'all', text: 'Todas' },
+        { key: 'pending', text: 'Pendentes' },
+        { key: 'approved', text: 'Aprovadas' },
+        { key: 'returned', text: 'Devolvidas' },
+        { key: 'rejected', text: 'Rejeitadas' }
+    ];
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerenciar Reservas</h1>
-            <div class="input-group w-50">
-                <input type="search" id="reservationsSearchInput" class="form-control" placeholder="Buscar por usuário, equipamento..." value="${searchTerm}">
-                <button class="btn btn-outline-secondary" type="button" id="searchReservationsBtn"><i class="bi bi-search"></i></button>
+        </div>
+        <div class="row mb-4">
+            <div class="col-lg-7 mb-2 mb-lg-0">
+                <div class="input-group">
+                    <input type="search" id="reservationsSearchInput" class="form-control" placeholder="Buscar por usuário, equipamento, email..." value="${searchTerm}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchReservationsBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="btn-group w-100" role="group">
+                    ${statusFilters.map(filter => `
+                        <button type="button" class="btn ${statusFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} admin-status-filter-btn" data-status="${filter.key}">${filter.text}</button>
+                    `).join('')}
+                </div>
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
@@ -93,9 +112,12 @@ export async function loadManageReservationsView(token, searchTerm = '') {
         if (searchTerm) {
             url.searchParams.append('search', searchTerm);
         }
+        if (statusFilter && statusFilter !== 'all') {
+            url.searchParams.append('status', statusFilter);
+        }
         const reservations = await apiFetch(url, token);
         if (reservations.length === 0) {
-            container.innerHTML = '<p class="text-muted">Nenhuma reserva encontrada.</p>';
+            container.innerHTML = '<p class="text-muted text-center">Nenhuma reserva encontrada com os filtros aplicados.</p>';
             return;
         }
         container.innerHTML = `
@@ -106,7 +128,7 @@ export async function loadManageReservationsView(token, searchTerm = '') {
                 <tbody>
                     ${reservations.map(res => `
                         <tr id="reservation-row-${res.id}">
-                            <td data-label="Usuário">${res.user.username}</td>
+                            <td data-label="Usuário">${res.user.username} <small class="text-muted d-block">${res.user.email}</small></td>
                             <td data-label="Equipamento">${res.equipment_unit.equipment_type.name} (${res.equipment_unit.identifier_code || 'N/A'})</td>
                             <td class="status-cell" data-label="Status">${renderStatusBadge(res.status)}</td>
                             <td data-label="Período">${new Date(res.start_time).toLocaleString('pt-BR')} - ${new Date(res.end_time).toLocaleString('pt-BR')}</td>
@@ -120,6 +142,7 @@ export async function loadManageReservationsView(token, searchTerm = '') {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
 
 export async function loadManageUsersView(token, currentUserId, searchTerm = '') {
     renderView(`

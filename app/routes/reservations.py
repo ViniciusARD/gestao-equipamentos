@@ -1,13 +1,15 @@
 # app/routes/reservations.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+from sqlalchemy import or_
+from typing import List, Optional
 from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
+from app.models.equipment_type import EquipmentType
 from app.models.user import User
 from app.schemas.reservation import ReservationCreate, ReservationOut
 from app.security import get_current_user, get_current_requester_user
@@ -58,20 +60,37 @@ def create_reservation(
 @router.get("/my-reservations", response_model=List[ReservationOut])
 def get_my_reservations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_requester_user)
+    current_user: User = Depends(get_current_requester_user),
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None)
 ):
     """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
-    reservations = (
+    query = (
         db.query(Reservation)
+        .join(Reservation.equipment_unit)
+        .join(EquipmentUnit.equipment_type)
         .filter(Reservation.user_id == current_user.id)
         .options(
             joinedload(Reservation.user),
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
         )
-        .order_by(Reservation.created_at.desc())
-        .all()
     )
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                EquipmentType.name.ilike(search_term),
+                EquipmentUnit.identifier_code.ilike(search_term)
+            )
+        )
+    
+    if status and status != "all":
+        query = query.filter(Reservation.status == status)
+
+    reservations = query.order_by(Reservation.created_at.desc()).all()
     return reservations
+
 
 @router.get("/upcoming", response_model=List[ReservationOut])
 def get_my_upcoming_reservations(

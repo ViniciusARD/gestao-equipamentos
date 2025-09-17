@@ -42,9 +42,10 @@ def approve_and_create_calendar_event(db: Session, reservation: Reservation):
 def list_all_reservations(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user),
-    search: Optional[str] = None
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None)
 ):
-    """(Manager) Lista todas as reservas, com filtro de busca opcional."""
+    """(Manager) Lista todas as reservas, com filtro de busca e status opcional."""
     query = (
         db.query(Reservation)
         .join(Reservation.user)
@@ -66,6 +67,9 @@ def list_all_reservations(
                 EquipmentUnit.identifier_code.ilike(search_term)
             )
         )
+
+    if status and status != "all":
+        query = query.filter(Reservation.status == status)
     
     reservations = query.order_by(Reservation.created_at.desc()).all()
     return reservations

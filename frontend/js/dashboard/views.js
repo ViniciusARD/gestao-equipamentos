@@ -167,19 +167,56 @@ export async function loadEquipmentsView(token, searchTerm = '', categoryFilter 
 /**
  * Carrega a view com as reservas do usuário logado.
  * @param {string} token - O token de autorização.
+ * @param {string} searchTerm - O termo de busca opcional.
+ * @param {string} statusFilter - O filtro de status opcional.
  */
-export async function loadMyReservationsView(token) {
+export async function loadMyReservationsView(token, searchTerm = '', statusFilter = 'all') {
+    const statusFilters = [
+        { key: 'all', text: 'Todas' },
+        { key: 'pending', text: 'Pendentes' },
+        { key: 'approved', text: 'Aprovadas' },
+        { key: 'returned', text: 'Devolvidas' },
+        { key: 'rejected', text: 'Rejeitadas' }
+    ];
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Minhas Reservas</h1>
         </div>
+        <div class="row mb-4">
+            <div class="col-lg-7 mb-2 mb-lg-0">
+                <div class="input-group">
+                    <input type="search" id="myReservationsSearchInput" class="form-control" placeholder="Buscar por nome ou código do equipamento..." value="${searchTerm}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchMyReservationsBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="btn-group w-100" role="group">
+                    ${statusFilters.map(filter => `
+                        <button type="button" class="btn ${statusFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} status-filter-btn" data-status="${filter.key}">${filter.text}</button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
         <div id="listContainer" class="table-responsive"></div>
     `);
+    
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
     try {
-        const reservations = await apiFetch(`${API_URL}/reservations/my-reservations`, token);
-        const container = document.getElementById('listContainer');
+        const url = new URL(`${API_URL}/reservations/my-reservations`);
+        if (searchTerm) {
+            url.searchParams.append('search', searchTerm);
+        }
+        if (statusFilter && statusFilter !== 'all') {
+            url.searchParams.append('status', statusFilter);
+        }
+        
+        const reservations = await apiFetch(url, token);
+        
         if (reservations.length === 0) {
-            container.innerHTML = '<p class="text-muted">Você não fez nenhuma reserva.</p>';
+            container.innerHTML = '<p class="text-muted text-center">Nenhuma reserva encontrada com os filtros aplicados.</p>';
             return;
         }
         container.innerHTML = `
@@ -191,6 +228,7 @@ export async function loadMyReservationsView(token) {
                         <th>Status</th>
                         <th>Início</th>
                         <th>Fim</th>
+                        <th>Data Solicitação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -201,6 +239,7 @@ export async function loadMyReservationsView(token) {
                             <td>${renderStatusBadge(res.status)}</td>
                             <td>${new Date(res.start_time).toLocaleString('pt-BR')}</td>
                             <td>${new Date(res.end_time).toLocaleString('pt-BR')}</td>
+                            <td>${new Date(res.created_at).toLocaleDateString('pt-BR')}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -210,6 +249,7 @@ export async function loadMyReservationsView(token) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
 
 /**
  * Carrega a view de gerenciamento da conta do usuário.
