@@ -20,6 +20,7 @@ export function initializeEvents(state) {
     document.body.addEventListener('click', handleGlobalClick);
     document.body.addEventListener('submit', handleGlobalSubmit);
     document.body.addEventListener('keyup', handleGlobalKeyUp);
+    document.body.addEventListener('change', handleGlobalChange);
 }
 
 // --- Funções de Manipulação de Eventos (Handlers) ---
@@ -68,7 +69,26 @@ async function handleGlobalClick(event) {
         const searchTerm = document.getElementById('usersSearchInput').value.trim();
         loadManageUsersView(token, appState.currentUser.id, searchTerm);
     }
+    if (target.matches('#searchEquipmentsBtn')) {
+        const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
+        const category = document.getElementById('equipmentsCategoryFilter').value;
+        loadEquipmentsView(token, searchTerm, category);
+    }
 }
+
+async function handleGlobalChange(event) {
+    const target = event.target;
+    if (!target) return;
+
+    const token = appState.token;
+
+    if (target.matches('#equipmentsCategoryFilter')) {
+        const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
+        const category = target.value;
+        loadEquipmentsView(token, searchTerm, category);
+    }
+}
+
 
 async function handleGlobalSubmit(event) {
     const token = appState.token;
@@ -99,6 +119,10 @@ function handleGlobalKeyUp(event) {
     } else if (target.id === 'usersSearchInput') {
         const searchTerm = target.value.trim();
         loadManageUsersView(token, appState.currentUser.id, searchTerm);
+    } else if (target.id === 'equipmentsSearchInput') {
+        const searchTerm = target.value.trim();
+        const category = document.getElementById('equipmentsCategoryFilter').value;
+        loadEquipmentsView(token, searchTerm, category);
     }
 }
 
