@@ -44,9 +44,11 @@ def list_all_reservations(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user),
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None)
+    status: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)
 ):
-    """(Manager) Lista todas as reservas, com filtro de busca e status opcional."""
+    """(Manager) Lista todas as reservas, com filtros avançados."""
     query = (
         db.query(Reservation)
         .join(Reservation.user)
@@ -72,7 +74,12 @@ def list_all_reservations(
     if status and status != "all":
         query = query.filter(Reservation.status == status)
     
-    reservations = query.order_by(Reservation.created_at.desc()).all()
+    if start_date:
+        query = query.filter(Reservation.end_time >= start_date)
+    if end_date:
+        query = query.filter(Reservation.start_time <= end_date)
+    
+    reservations = query.order_by(Reservation.start_time.desc()).all()
     return reservations
 
 

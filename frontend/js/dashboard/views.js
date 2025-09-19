@@ -167,10 +167,9 @@ export async function loadEquipmentsView(token, searchTerm = '', categoryFilter 
 /**
  * Carrega a view com as reservas do usuário logado.
  * @param {string} token - O token de autorização.
- * @param {string} searchTerm - O termo de busca opcional.
- * @param {string} statusFilter - O filtro de status opcional.
+ * @param {object} params - Objeto com os parâmetros de filtro.
  */
-export async function loadMyReservationsView(token, searchTerm = '', statusFilter = 'all') {
+export async function loadMyReservationsView(token, params = {}) {
     const statusFilters = [
         { key: 'all', text: 'Todas' },
         { key: 'pending', text: 'Pendentes' },
@@ -183,18 +182,30 @@ export async function loadMyReservationsView(token, searchTerm = '', statusFilte
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Minhas Reservas</h1>
         </div>
-        <div class="row mb-4">
-            <div class="col-lg-7 mb-2 mb-lg-0">
-                <div class="input-group">
-                    <input type="search" id="myReservationsSearchInput" class="form-control" placeholder="Buscar por nome ou código do equipamento..." value="${searchTerm}">
-                    <button class="btn btn-outline-secondary" type="button" id="searchMyReservationsBtn"><i class="bi bi-search"></i></button>
-                </div>
-            </div>
-            <div class="col-lg-5">
-                <div class="btn-group w-100" role="group">
-                    ${statusFilters.map(filter => `
-                        <button type="button" class="btn ${statusFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} status-filter-btn" data-status="${filter.key}">${filter.text}</button>
-                    `).join('')}
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <input type="search" id="myReservationsSearchInput" class="form-control" placeholder="Buscar por nome ou código do equipamento..." value="${params.search || ''}">
+                    </div>
+                    <div class="col-12">
+                        <div class="btn-group w-100" role="group">
+                            ${statusFilters.map(filter => `
+                                <button type="button" class="btn ${(params.status || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} status-filter-btn" data-status="${filter.key}">${filter.text}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="myReservationsStartDate" class="form-label small">Período de</label>
+                        <input type="date" id="myReservationsStartDate" class="form-control" value="${params.start_date || ''}">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="myReservationsEndDate" class="form-label small">Até</label>
+                        <input type="date" id="myReservationsEndDate" class="form-control" value="${params.end_date || ''}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                         <button class="btn btn-primary w-100" id="applyMyReservationsFilterBtn"><i class="bi bi-funnel-fill"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -206,12 +217,10 @@ export async function loadMyReservationsView(token, searchTerm = '', statusFilte
 
     try {
         const url = new URL(`${API_URL}/reservations/my-reservations`);
-        if (searchTerm) {
-            url.searchParams.append('search', searchTerm);
-        }
-        if (statusFilter && statusFilter !== 'all') {
-            url.searchParams.append('status', statusFilter);
-        }
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.status && params.status !== 'all') url.searchParams.append('status', params.status);
+        if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
+        if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
         
         const reservations = await apiFetch(url, token);
         

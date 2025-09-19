@@ -62,7 +62,9 @@ def get_my_reservations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user),
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None)
+    status: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)
 ):
     """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
     query = (
@@ -88,7 +90,13 @@ def get_my_reservations(
     if status and status != "all":
         query = query.filter(Reservation.status == status)
 
-    reservations = query.order_by(Reservation.created_at.desc()).all()
+    if start_date:
+        query = query.filter(Reservation.end_time >= start_date)
+    if end_date:
+        query = query.filter(Reservation.start_time <= end_date)
+
+
+    reservations = query.order_by(Reservation.start_time.desc()).all()
     return reservations
 
 

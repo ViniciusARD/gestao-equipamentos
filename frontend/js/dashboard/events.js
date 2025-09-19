@@ -34,12 +34,12 @@ async function handleGlobalClick(event) {
     const navActions = {
         'nav-dashboard': () => loadDashboardHomeView(token),
         'nav-equipments': () => loadEquipmentsView(token),
-        'nav-my-reservations': () => loadMyReservationsView(token),
+        'nav-my-reservations': () => loadMyReservationsView(token, {}),
         'nav-my-account': () => loadMyAccountView(appState.currentUser),
-        'nav-manage-reservations': () => loadManageReservationsView(token),
+        'nav-manage-reservations': () => loadManageReservationsView(token, {}),
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
         'nav-manage-inventory': () => loadManageInventoryView(token),
-        'nav-system-logs': () => loadSystemLogsView(token)
+        'nav-system-logs': () => loadSystemLogsView(token, {})
     };
     if (navActions[target.id]) {
         event.preventDefault();
@@ -60,69 +60,34 @@ async function handleGlobalClick(event) {
     if (target.matches('#connectGoogleBtn')) handleGoogleConnect(target, token);
     if (target.matches('#deleteAccountBtn')) handleDeleteAccount(target, token);
 
-    // Handlers para os botões de busca
-    if (target.matches('#searchReservationsBtn')) {
-        const searchTerm = document.getElementById('reservationsSearchInput').value.trim();
-        const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
-        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
-        loadManageReservationsView(token, searchTerm, status);
-    }
-    if (target.matches('#searchUsersBtn')) {
-        const searchTerm = document.getElementById('usersSearchInput').value.trim();
-        const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
-        const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
-        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
-    }
-    if (target.matches('#searchEquipmentsBtn')) {
-        const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
-        const category = document.getElementById('equipmentsCategoryFilter').value;
-        loadEquipmentsView(token, searchTerm, category);
-    }
-    if (target.matches('#searchMyReservationsBtn')) {
-        const searchTerm = document.getElementById('myReservationsSearchInput').value.trim();
-        const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
-        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
-        loadMyReservationsView(token, searchTerm, status);
-    }
-    if (target.matches('#searchInventoryBtn')) {
-        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
-        const category = document.getElementById('inventoryCategoryFilter').value;
-        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
-        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
-        loadManageInventoryView(token, searchTerm, category, availability);
-    }
-    if (target.matches('#applyLogsFilterBtn')) {
-        applyLogsFilter();
-    }
+    // --- Handlers para os botões de APLICAR FILTRO ---
+    if (target.matches('#applyReservationsFilterBtn')) applyAdminReservationsFilter();
+    if (target.matches('#applyMyReservationsFilterBtn')) applyMyReservationsFilter();
+    if (target.matches('#searchUsersBtn')) applyUsersFilter();
+    if (target.matches('#searchInventoryBtn')) applyInventoryFilter();
+    if (target.matches('#applyLogsFilterBtn')) applyLogsFilter();
 
 
-    // Handler para os botões de filtro de status em "Minhas Reservas"
+    // --- Handlers para cliques em botões de filtro (que recarregam a view) ---
     if (target.matches('.status-filter-btn')) {
-        const searchTerm = document.getElementById('myReservationsSearchInput').value.trim();
-        const status = target.dataset.status;
-        loadMyReservationsView(token, searchTerm, status);
+        document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
+        target.classList.replace('btn-outline-primary', 'btn-primary');
+        applyMyReservationsFilter();
     }
-
-    // Handler para os botões de filtro de status em "Gerir Reservas"
     if (target.matches('.admin-status-filter-btn')) {
-        const searchTerm = document.getElementById('reservationsSearchInput').value.trim();
-        const status = target.dataset.status;
-        loadManageReservationsView(token, searchTerm, status);
+        document.querySelectorAll('.admin-status-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
+        target.classList.replace('btn-outline-primary', 'btn-primary');
+        applyAdminReservationsFilter();
     }
-    
-    // Handler para os botões de filtro de disponibilidade em "Gerir Inventário"
     if (target.matches('.inventory-availability-filter-btn')) {
-        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
-        const category = document.getElementById('inventoryCategoryFilter').value;
-        const availability = target.dataset.availability;
-        loadManageInventoryView(token, searchTerm, category, availability);
+        document.querySelectorAll('.inventory-availability-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
+        target.classList.replace('btn-outline-primary', 'btn-primary');
+        applyInventoryFilter();
     }
-    
-    // Handler para os botões de filtro de permissão em "Gerir Usuários"
     if (target.matches('.user-role-filter-btn')) {
-        const searchTerm = document.getElementById('usersSearchInput').value.trim();
-        const role = target.dataset.role;
-        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
+        document.querySelectorAll('.user-role-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
+        target.classList.replace('btn-outline-primary', 'btn-primary');
+        applyUsersFilter();
     }
 }
 
@@ -130,20 +95,11 @@ async function handleGlobalChange(event) {
     const target = event.target;
     if (!target) return;
 
-    const token = appState.token;
-
     if (target.matches('#equipmentsCategoryFilter')) {
-        const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
-        const category = target.value;
-        loadEquipmentsView(token, searchTerm, category);
+        applyEquipmentsFilter();
     }
-    
     if (target.matches('#inventoryCategoryFilter')) {
-        const searchTerm = document.getElementById('inventorySearchInput').value.trim();
-        const category = target.value;
-        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
-        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
-        loadManageInventoryView(token, searchTerm, category, availability);
+        applyInventoryFilter();
     }
 }
 
@@ -167,41 +123,64 @@ async function handleGlobalSubmit(event) {
 
 function handleGlobalKeyUp(event) {
     if (event.key !== 'Enter') return;
-
     const target = event.target;
-    const token = appState.token;
-
-    if (target.id === 'reservationsSearchInput') {
-        const searchTerm = target.value.trim();
-        const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
-        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
-        loadManageReservationsView(token, searchTerm, status);
-    } else if (target.id === 'usersSearchInput') {
-        const searchTerm = target.value.trim();
-        const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
-        const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
-        loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
-    } else if (target.id === 'equipmentsSearchInput') {
-        const searchTerm = target.value.trim();
-        const category = document.getElementById('equipmentsCategoryFilter').value;
-        loadEquipmentsView(token, searchTerm, category);
-    } else if (target.id === 'myReservationsSearchInput') {
-        const searchTerm = target.value.trim();
-        const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
-        const status = activeStatusBtn ? activeStatusBtn.dataset.status : 'all';
-        loadMyReservationsView(token, searchTerm, status);
-    } else if (target.id === 'inventorySearchInput') {
-        const searchTerm = target.value.trim();
-        const category = document.getElementById('inventoryCategoryFilter').value;
-        const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
-        const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
-        loadManageInventoryView(token, searchTerm, category, availability);
-    } else if (target.id === 'logsSearchInput') {
-        applyLogsFilter();
-    }
+    if (target.matches('#reservationsSearchInput')) applyAdminReservationsFilter();
+    if (target.matches('#usersSearchInput')) applyUsersFilter();
+    if (target.matches('#equipmentsSearchInput')) applyEquipmentsFilter();
+    if (target.matches('#myReservationsSearchInput')) applyMyReservationsFilter();
+    if (target.matches('#inventorySearchInput')) applyInventoryFilter();
+    if (target.matches('#logsSearchInput')) applyLogsFilter();
 }
 
-// --- Lógica de Handlers específicos ---
+// --- Funções Genéricas para Aplicar Filtros ---
+
+function applyAdminReservationsFilter() {
+    const token = appState.token;
+    const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
+    const params = {
+        search: document.getElementById('reservationsSearchInput').value.trim(),
+        status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
+        start_date: document.getElementById('reservationsStartDate').value,
+        end_date: document.getElementById('reservationsEndDate').value,
+    };
+    loadManageReservationsView(token, params);
+}
+
+function applyMyReservationsFilter() {
+    const token = appState.token;
+    const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
+    const params = {
+        search: document.getElementById('myReservationsSearchInput').value.trim(),
+        status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
+        start_date: document.getElementById('myReservationsStartDate').value,
+        end_date: document.getElementById('myReservationsEndDate').value,
+    };
+    loadMyReservationsView(token, params);
+}
+
+function applyUsersFilter() {
+    const token = appState.token;
+    const searchTerm = document.getElementById('usersSearchInput').value.trim();
+    const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
+    const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
+    loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
+}
+
+function applyInventoryFilter() {
+    const token = appState.token;
+    const searchTerm = document.getElementById('inventorySearchInput').value.trim();
+    const category = document.getElementById('inventoryCategoryFilter').value;
+    const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
+    const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
+    loadManageInventoryView(token, searchTerm, category, availability);
+}
+
+function applyEquipmentsFilter() {
+    const token = appState.token;
+    const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
+    const category = document.getElementById('equipmentsCategoryFilter').value;
+    loadEquipmentsView(token, searchTerm, category);
+}
 
 function applyLogsFilter() {
     const token = appState.token;
@@ -214,6 +193,9 @@ function applyLogsFilter() {
     };
     loadSystemLogsView(token, params);
 }
+
+
+// --- Lógica de Handlers específicos ---
 
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');
@@ -242,6 +224,7 @@ async function handleReservationSubmit(token) {
         showToast('Reserva solicitada!', 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         form.reset();
+        applyMyReservationsFilter(); // Recarrega a view com os filtros atuais
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     } finally {
