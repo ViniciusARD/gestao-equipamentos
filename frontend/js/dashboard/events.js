@@ -59,6 +59,8 @@ async function handleGlobalClick(event) {
     if (target.matches('#cancelEditUnitBtn')) resetUnitForm();
     if (target.matches('#connectGoogleBtn')) handleGoogleConnect(target, token);
     if (target.matches('#deleteAccountBtn')) handleDeleteAccount(target, token);
+    if (target.matches('#enable2faBtn')) handleEnable2FA(token);
+    if (target.matches('#disable2faBtn')) handleDisable2FA(token);
 
     // --- Handlers para os botões de APLICAR FILTRO ---
     if (target.matches('#applyReservationsFilterBtn')) applyAdminReservationsFilter();
@@ -106,19 +108,13 @@ async function handleGlobalChange(event) {
 
 async function handleGlobalSubmit(event) {
     const token = appState.token;
-    if (event.target.id === 'reservationForm') {
-        event.preventDefault();
-        handleReservationSubmit(token);
-    } else if (event.target.id === 'equipmentTypeForm') {
-        event.preventDefault();
-        handleEquipmentTypeSubmit(token);
-    } else if (event.target.id === 'unitForm') {
-        event.preventDefault();
-        handleUnitFormSubmit(token);
-    } else if (event.target.id === 'updateProfileForm') {
-        event.preventDefault();
-        handleUpdateProfile(token);
-    }
+    event.preventDefault();
+    
+    if (event.target.id === 'reservationForm') handleReservationSubmit(token);
+    else if (event.target.id === 'equipmentTypeForm') handleEquipmentTypeSubmit(token);
+    else if (event.target.id === 'unitForm') handleUnitFormSubmit(token);
+    else if (event.target.id === 'updateProfileForm') handleUpdateProfile(token);
+    else if (event.target.id === '2faEnableForm') handleEnable2FASubmit(token);
 }
 
 function handleGlobalKeyUp(event) {
@@ -395,4 +391,78 @@ function prepareUnitFormForEdit(unit) {
     document.getElementById('unitIdentifier').value = unit.identifier_code !== 'N/A' ? unit.identifier_code : '';
     document.getElementById('unitStatus').value = unit.status;
     document.getElementById('cancelEditUnitBtn').style.display = 'block';
+}
+
+// --- Funções 2FA ---
+
+async function handleEnable2FA(token) {
+    const modal = new bootstrap.Modal(document.getElementById('2faSetupModal'));
+    const qrContainer = document.getElementById('qrCodeContainer');
+    const otpSecretInput = document.getElementById('otpSecret');
+    
+    qrContainer.innerHTML = '<div class="spinner-border"></div>';
+    modal.show();
+
+    try {
+        const setupData = await apiFetch(`${API_URL}/2fa/setup`, token);
+        otpSecretInput.value = setupData.otp_secret;
+        
+        const qrCodeUrl = `${API_URL}/2fa/qr-code?provisioning_uri=${encodeURIComponent(setupData.provisioning_uri)}`;
+        qrContainer.innerHTML = `<img src="${qrCodeUrl}" alt="QR Code para 2FA" class="img-fluid qr-code-image">`;
+
+    } catch (e) {
+        qrContainer.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+async function handleEnable2FASubmit(token) {
+    const form = document.getElementById('2faEnableForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById('2faEnableMessage');
+    
+    const otp_secret = document.getElementById('otpSecret').value;
+    const otp_code = document.getElementById('otpEnableCode').value;
+
+    setButtonLoading(submitButton, true, 'Ativando...');
+    messageDiv.innerHTML = '';
+    
+    try {
+        await apiFetch(`${API_URL}/2fa/enable`, token, {
+            method: 'POST',
+            body: { otp_secret, otp_code }
+        });
+        showToast('2FA ativado com sucesso!', 'success');
+        appState.currentUser.otp_enabled = true;
+        loadMyAccountView(appState.currentUser); // Recarrega a view
+        bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+    } catch (e) {
+        messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    } finally {
+        setButtonLoading(submitButton, false);
+    }
+}
+
+async function handleDisable2FA(token) {
+    const password = prompt("Para desativar o 2FA, por favor, insira sua senha:");
+    if (!password) return;
+
+    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticador:");
+    if (!otp_code) return;
+    
+    const button = document.getElementById('disable2faBtn');
+    setButtonLoading(button, true);
+
+    try {
+        await apiFetch(`${API_URL}/2fa/disable`, token, {
+            method: 'POST',
+            body: { password, otp_code }
+        });
+        showToast('2FA desativado com sucesso!', 'success');
+        appState.currentUser.otp_enabled = false;
+        loadMyAccountView(appState.currentUser); // Recarrega a view
+    } catch (e) {
+        showToast(`Erro ao desativar 2FA: ${e.message}`, 'danger');
+    } finally {
+        setButtonLoading(button, false);
+    }
 }

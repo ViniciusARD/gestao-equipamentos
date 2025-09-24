@@ -21,6 +21,9 @@ class UserLogin(BaseModel):
 class UserOut(UserBase):
     id: int
     role: str
+    is_active: bool
+    is_verified: bool
+    otp_enabled: bool
 
     class Config:
         from_attributes = True # Permite que o Pydantic leia dados de um objeto ORM (SQLAlchemy)
@@ -29,6 +32,18 @@ class UserOut(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+# Schema para login com 2FA
+class LoginResponse(BaseModel):
+    login_step: str # 'completed' or '2fa_required'
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
+    temp_token: Optional[str] = None # Token temporário para a verificação 2FA
+
+
+class TwoFactorRequest(BaseModel):
+    temp_token: str
+    otp_code: str
 
 # Schemas para o fluxo de "Esqueci minha senha" ---
 class ForgotPasswordRequest(BaseModel):
@@ -41,3 +56,16 @@ class ResetPasswordRequest(BaseModel):
  # Schema para atualização do perfil do usuário ---
 class UserUpdate(BaseModel):
     username: Optional[str] = None
+
+# Schemas para 2FA
+class TwoFactorSetupResponse(BaseModel):
+    otp_secret: str
+    provisioning_uri: str
+
+class TwoFactorEnableRequest(BaseModel):
+    otp_code: str
+    otp_secret: str # <-- ADICIONADO AQUI
+
+class TwoFactorDisableRequest(BaseModel):
+    password: str
+    otp_code: str

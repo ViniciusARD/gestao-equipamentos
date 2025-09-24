@@ -17,6 +17,26 @@ conf = ConnectionConfig(
     TEMPLATE_FOLDER=Path(__file__).parent / 'templates'
 )
 
+async def send_verification_email(email_to: str, username: str, token: str):
+    """Envia o email de verificação de conta."""
+    verification_link = f"http://127.0.0.1:5500/frontend/verify-email.html?token={token}"
+
+    template_body = {
+        "username": username,
+        "verification_link": verification_link,
+    }
+
+    message = MessageSchema(
+        subject="Verifique sua conta - Sistema de Gestão de Equipamentos",
+        recipients=[email_to],
+        template_body=template_body,
+        subtype="html"
+    )
+
+    fm = FastMail(conf)
+    await fm.send_message(message, template_name="email_verification.html")
+
+
 async def send_reset_password_email(email_to: str, username: str, token: str):
     """
     Envia o email de redefinição de senha para o usuário.

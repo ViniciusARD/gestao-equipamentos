@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import uuid
+import pyotp
 
 from app.config import settings
 from app.database import get_db
@@ -66,6 +67,10 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
+    
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Conta inativa.")
+
     return user
 
 def get_current_requester_user(current_user: User = Depends(get_current_user)) -> User:
@@ -98,6 +103,29 @@ def get_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
     """
     return credentials.credentials
 
+def create_verification_token(email: str) -> str:
+    """
+    Cria um token JWT específico para verificação de email.
+    """
+    expire = datetime.utcnow() + timedelta(hours=24) # Válido por 24 horas
+    to_encode = {"exp": expire, "sub": email, "scope": "email_verification"}
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+def verify_verification_token(token: str) -> str | None:
+    """
+    Verifica o token de verificação de email e retorna o email se for válido.
+    """
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("scope") == "email_verification":
+            email: str = payload.get("sub")
+            return email
+        return None
+    except JWTError:
+        return None
+
+
 def create_password_reset_token(email: str) -> str:
     """
     Cria um token JWT específico para redefinição de senha, com validade curta.
@@ -119,3 +147,8 @@ def verify_password_reset_token(token: str) -> str | None:
         return None
     except JWTError:
         return None
+
+def verify_otp(otp_secret: str, otp_code: str) -> bool:
+    """Verifica um código OTP."""
+    totp = pyotp.TOTP(otp_secret)
+    return totp.verify(otp_code)

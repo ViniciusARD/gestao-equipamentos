@@ -14,3 +14,5 @@ google-auth-oauthlib
 pyasn1==0.4.8
 fastapi-mail
 jinja2
+pyotp
+qrcode[pil]

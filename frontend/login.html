@@ -44,6 +44,32 @@
         </div>
     </div>
 
+    <div class="modal fade" id="2faModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Verificação de Dois Fatores</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Abra seu aplicativo autenticador e insira o código de 6 dígitos.</p>
+                    <form id="2faForm">
+                        <input type="hidden" id="tempToken">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="otpCode" placeholder="123456" required pattern="\d{6}" maxlength="6">
+                            <label for="otpCode">Código de Verificação</label>
+                        </div>
+                        <div id="2faErrorMessage" class="alert alert-danger d-none"></div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Verificar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/login.js"></script>
 </body>
 </html>

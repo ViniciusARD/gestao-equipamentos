@@ -265,6 +265,10 @@ export async function loadMyReservationsView(token, params = {}) {
  * @param {object} currentUser - O objeto do usuário logado.
  */
 export function loadMyAccountView(currentUser) {
+    const twoFactorButton = currentUser.otp_enabled
+        ? `<button class="btn btn-outline-warning" id="disable2faBtn"><i class="bi bi-shield-slash me-2"></i>Desativar 2FA</button>`
+        : `<button class="btn btn-primary" id="enable2faBtn"><i class="bi bi-shield-check me-2"></i>Ativar 2FA</button>`;
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Minha Conta</h1>
@@ -292,6 +296,19 @@ export function loadMyAccountView(currentUser) {
                 </div>
                 <div class="col-md-6 mb-4">
                     <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Segurança</h5>
+                            <p class="card-text">Aumente a segurança da sua conta com a autenticação de dois fatores (2FA). Você precisará de um aplicativo como o Google Authenticator.</p>
+                            <div id="2fa-button-container">
+                                ${twoFactorButton}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Integração com Google Agenda</h5>
                             <p class="card-text">Conecte sua conta do Google para que suas reservas aprovadas sejam automaticamente adicionadas à sua agenda.</p>
