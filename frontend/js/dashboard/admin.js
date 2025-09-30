@@ -3,8 +3,6 @@
 import { API_URL, apiFetch } from './api.js';
 import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading } from './ui.js';
 
-// --- Funções de Renderização Específicas do Admin ---
-
 function renderAdminReservationActions(reservation) {
     if (reservation.status === 'pending') {
         return `
@@ -20,13 +18,16 @@ function renderAdminReservationActions(reservation) {
 
 function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
-
-    // Definir a hierarquia de papéis
     const roles = ['user', 'requester', 'manager', 'admin'];
     const userRoleIndex = roles.indexOf(user.role);
 
+    const sectorButton = `
+        <button class="btn btn-info btn-sm me-1 text-white user-action-btn" data-user-id="${user.id}" data-action="change-sector" title="Alterar Setor">
+            <i class="bi bi-tag"></i>
+        </button>`;
+
     let promoteButton = '';
-    if (userRoleIndex < roles.length - 1) { // Pode ser promovido se não for admin
+    if (userRoleIndex < roles.length - 1) {
         const nextRole = roles[userRoleIndex + 1];
         promoteButton = `
             <button class="btn btn-success btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="promote" data-current-role="${user.role}" title="Promover para ${nextRole}" ${isCurrentUser ? 'disabled' : ''}>
@@ -36,9 +37,8 @@ function renderUserActions(user, currentUserId) {
         promoteButton = `<button class="btn btn-success btn-sm me-1" disabled title="Já está no nível máximo"><i class="bi bi-arrow-up-circle"></i></button>`;
     }
 
-
     let demoteButton = '';
-    if (userRoleIndex > 0) { // Pode ser rebaixado se não for user
+    if (userRoleIndex > 0) {
         const prevRole = roles[userRoleIndex - 1];
         demoteButton = `
             <button class="btn btn-warning btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="demote" data-current-role="${user.role}" title="Rebaixar para ${prevRole}" ${isCurrentUser ? 'disabled' : ''}>
@@ -53,9 +53,8 @@ function renderUserActions(user, currentUserId) {
             <i class="bi bi-trash"></i>
         </button>`;
 
-    return `${promoteButton}${demoteButton}${deleteButton}`;
+    return `${sectorButton}${promoteButton}${demoteButton}${deleteButton}`;
 }
-
 
 function renderInventoryRow(type) {
     return `
@@ -72,8 +71,6 @@ function renderInventoryRow(type) {
         </tr>
     `;
 }
-
-// --- Funções de Carregamento de Views de Admin ---
 
 export async function loadManageReservationsView(token, params = {}) {
     const statusFilters = [
@@ -155,7 +152,6 @@ export async function loadManageReservationsView(token, params = {}) {
     }
 }
 
-
 export async function loadManageUsersView(token, currentUserId, searchTerm = '', roleFilter = 'all') {
     const roleFilters = [
         { key: 'all', text: 'Todos' },
@@ -205,7 +201,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
-                    <tr><th>ID</th><th>Username</th><th>Email</th><th>Permissão</th><th>Ações</th></tr>
+                    <tr><th>ID</th><th>Username</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
                     ${users.map(user => `
@@ -213,6 +209,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
                             <td>${user.id}</td>
                             <td>${user.username}</td>
                             <td>${user.email}</td>
+                            <td class="sector-cell">${user.setor ? user.setor.name : '<span class="text-muted">N/A</span>'}</td>
                             <td class="role-cell">${renderRoleBadge(user.role)}</td>
                             <td class="action-cell">${renderUserActions(user, currentUserId)}</td>
                         </tr>
@@ -227,7 +224,6 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
 
 
 export async function loadManageInventoryView(token, searchTerm = '', categoryFilter = 'all', availabilityFilter = 'all') {
-    // Busca todas as categorias para popular o dropdown de filtro
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
     const categories = [...new Set(allTypesForCategories.map(type => type.category))].sort();
 
@@ -310,8 +306,7 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
 
 
 export async function loadSystemLogsView(token, params = {}) {
-    // Fetch all users to populate the filter dropdown
-    const users = await apiFetch(`${API_URL}/admin/users`, token, { limit: 1000 }); // Get a good number of users
+    const users = await apiFetch(`${API_URL}/admin/users`, token, { limit: 1000 });
     const userMap = users.reduce((map, user) => {
         map[user.id] = user.username;
         return map;
@@ -399,8 +394,6 @@ export async function loadSystemLogsView(token, params = {}) {
 }
 
 
-// --- Funções de Manipulação de Eventos (Handlers) de Admin ---
-
 export async function handleUpdateReservationStatus(button, token) {
     const { reservationId, action } = button.dataset;
     setButtonLoading(button, true);
@@ -420,8 +413,23 @@ export async function handleUpdateReservationStatus(button, token) {
 
 export async function handleUserAction(button, token, currentUserId) {
     const { userId, action, currentRole } = button.dataset;
+    
     if (action === 'delete' && !confirm(`Tem certeza que deseja excluir o usuário ID ${userId}?`)) return;
 
+    if (action === 'change-sector') {
+        const modal = new bootstrap.Modal(document.getElementById('userSectorModal'));
+        const form = document.getElementById('userSectorForm');
+        form.dataset.userId = userId;
+        
+        const setorSelect = document.getElementById('userSectorSelect');
+        setorSelect.innerHTML = '<option>Carregando...</option>';
+        const setores = await apiFetch(`${API_URL}/setores`, token);
+        setorSelect.innerHTML = '<option value="">Nenhum</option>' + setores.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        modal.show();
+        return;
+    }
+    
     setButtonLoading(button, true);
 
     const roles = ['user', 'requester', 'manager', 'admin'];
@@ -442,16 +450,15 @@ export async function handleUserAction(button, token, currentUserId) {
         if (action === 'promote' || action === 'demote') {
             if (!newRole) {
                 showToast('Ação inválida para este nível de usuário.', 'warning');
-                setButtonLoading(button, false);
-                return;
+            } else {
+                const updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
+                const row = document.getElementById(`user-row-${updated.id}`);
+                if (row) {
+                    row.querySelector('.role-cell').innerHTML = renderRoleBadge(updated.role);
+                    row.querySelector('.action-cell').innerHTML = renderUserActions(updated, currentUserId);
+                }
+                showToast('Permissão alterada!', 'success');
             }
-            const updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
-            const row = document.getElementById(`user-row-${updated.id}`);
-            if (row) {
-                row.querySelector('.role-cell').innerHTML = renderRoleBadge(updated.role);
-                row.querySelector('.action-cell').innerHTML = renderUserActions(updated, currentUserId);
-            }
-            showToast('Permissão alterada!', 'success');
         } else if (action === 'delete') {
             await apiFetch(`${API_URL}/admin/users/${userId}`, token, { method: 'DELETE' });
             document.getElementById(`user-row-${userId}`).remove();
@@ -460,7 +467,6 @@ export async function handleUserAction(button, token, currentUserId) {
     } catch (e) {
         showToast(`Erro: ${e.message}`, 'danger');
     } finally {
-        // Only set button loading to false if it's not a delete action that was successful
         if (action !== 'delete' || document.getElementById(`user-row-${userId}`)) {
             setButtonLoading(button, false);
         }
@@ -489,7 +495,6 @@ export async function handleEquipmentTypeSubmit(token) {
         showToast(`Tipo ${typeId ? 'atualizado' : 'criado'}!`, 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         
-        // Recarrega a view de inventário para mostrar a lista atualizada
         loadManageInventoryView(token);
 
     } catch (e) {

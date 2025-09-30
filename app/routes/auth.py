@@ -11,6 +11,7 @@ from io import BytesIO
 
 from app.database import get_db
 from app.models.user import User
+from app.models.setor import Setor # <-- IMPORTAR
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import (
     UserCreate, UserOut, Token, UserLogin, ForgotPasswordRequest,
@@ -49,12 +50,19 @@ async def register_user(
     if db_user_by_username:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome de usuário já existe")
 
+    # --- LÓGICA DE SETOR ADICIONADA ---
+    if user.setor_id:
+        setor = db.query(Setor).filter(Setor.id == user.setor_id).first()
+        if not setor:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setor não encontrado.")
+
     hashed_password = get_password_hash(user.password)
     new_user = User(
         username=user.username,
         email=user.email,
         password_hash=hashed_password,
-        is_active=False,  # A conta começa inativa
+        setor_id=user.setor_id, # <-- ADICIONADO
+        is_active=False,
         is_verified=False
     )
 
@@ -62,7 +70,6 @@ async def register_user(
     db.commit()
     db.refresh(new_user)
 
-    # Envia e-mail de verificação em background
     verification_token = create_verification_token(email=new_user.email)
     background_tasks.add_task(
         send_verification_email,
@@ -73,6 +80,7 @@ async def register_user(
 
     return new_user
 
+# ... (Restante do arquivo auth.py permanece inalterado) ...
 @router.get("/verify-email")
 def verify_user_email(token: str, db: Session = Depends(get_db)):
     """
@@ -96,7 +104,6 @@ def verify_user_email(token: str, db: Session = Depends(get_db)):
     return {"message": "Sua conta foi verificada com sucesso!"}
 
 
-# --- ROTA DE LOGIN ATUALIZADA ---
 @router.post("/login", response_model=LoginResponse)
 def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
@@ -112,13 +119,11 @@ def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(ge
     if not user.is_active or not user.is_verified:
         raise HTTPException(status_code=403, detail="Sua conta está inativa ou não foi verificada.")
 
-    # Se 2FA estiver habilitado, inicia o fluxo de 2FA
     if user.otp_enabled:
         temp_token_data = {"sub": str(user.id), "scope": "2fa_verification"}
         temp_token = create_access_token(temp_token_data, expires_delta=timedelta(minutes=5))
         return {"login_step": "2fa_required", "temp_token": temp_token}
 
-    # Se 2FA não estiver habilitado, completa o login
     access_token = create_access_token(data={"sub": str(user.id)})
     create_log(db, user.id, "INFO", f"Usuário '{user.username}' logado com sucesso.")
     return {"login_step": "completed", "access_token": access_token, "token_type": "bearer"}
@@ -148,7 +153,6 @@ def login_2fa_verification(request: TwoFactorRequest, db: Session = Depends(get_
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# --- ROTAS DE REDEFINIÇÃO DE SENHA ---
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -157,7 +161,6 @@ async def forgot_password(
 ):
     """
     Inicia o fluxo de redefinição de senha.
-    Recebe um email, gera um token e envia o link de redefinição por email.
     """
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
@@ -178,7 +181,6 @@ async def forgot_password(
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
     """
     Finaliza o fluxo de redefinição de senha.
-    Recebe o token e a nova senha, valida o token e atualiza a senha.
     """
     email = verify_password_reset_token(request.token)
     if not email:
@@ -193,7 +195,6 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 
     return {"message": "Sua senha foi redefinida com sucesso."}
 
-# --- ROTA DE LOGOUT ---
 @router.post("/logout")
 def logout(db: Session = Depends(get_db), token: str = Depends(get_token)):
     """

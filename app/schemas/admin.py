@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 from enum import Enum
+from typing import Optional
 
 # --- Schemas para Reservas ---
 
@@ -23,3 +24,7 @@ class UserRoleEnum(str, Enum):
 
 class UserRoleUpdate(BaseModel):
     role: UserRoleEnum
+
+# --- NOVO SCHEMA ---
+class UserSectorUpdate(BaseModel):
+    setor_id: Optional[int] = None

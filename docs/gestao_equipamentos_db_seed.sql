@@ -77,3 +77,19 @@ INSERT INTO equipment_units (type_id, identifier_code, status) VALUES
 ((SELECT id FROM equipment_types WHERE name = 'Kit Arduino Uno R3 Completo'), 'ELET-ARD-001', 'available'),
 ((SELECT id FROM equipment_types WHERE name = 'Kit Arduino Uno R3 Completo'), 'ELET-ARD-002', 'available'),
 ((SELECT id FROM equipment_types WHERE name = 'Kit Arduino Uno R3 Completo'), 'ELET-ARD-003', 'available');
+
+-- Inserindo dados na tabela de setores (setores)
+INSERT INTO setores (name) VALUES
+('Tecnologia da Informação'),
+('Recursos Humanos'),
+('Marketing'),
+('Financeiro'),
+('Acadêmico'),
+('Administrativo');
+
+-- Inserindo dados na tabela de TIPOS de equipamento (equipment_types)
+INSERT INTO equipment_types (name, category, description) VALUES
+-- Categoria: Audiovisual
+('Projetor Multimídia Full HD', 'Audiovisual', 'Projetor com resolução 1920x1080, ideal para apresentações em salas de reunião e auditórios.'),
+('Kit Microfone de Lapela Sem Fio', 'Audiovisual', 'Conjunto com dois microfones de lapela e receptor sem fio, para gravações e eventos.'),
+-- ... (restante dos inserts)

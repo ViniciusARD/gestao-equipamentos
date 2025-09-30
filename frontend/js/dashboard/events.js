@@ -35,7 +35,7 @@ async function handleGlobalClick(event) {
         'nav-dashboard': () => loadDashboardHomeView(token),
         'nav-equipments': () => loadEquipmentsView(token),
         'nav-my-reservations': () => loadMyReservationsView(token, {}),
-        'nav-my-account': () => loadMyAccountView(appState.currentUser),
+        'nav-my-account': () => loadMyAccountView(appState.currentUser, token),
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
         'nav-manage-inventory': () => loadManageInventoryView(token),
@@ -115,6 +115,7 @@ async function handleGlobalSubmit(event) {
     else if (event.target.id === 'unitForm') handleUnitFormSubmit(token);
     else if (event.target.id === 'updateProfileForm') handleUpdateProfile(token);
     else if (event.target.id === '2faEnableForm') handleEnable2FASubmit(token);
+    else if (event.target.id === 'userSectorForm') handleAdminUpdateSector(token);
 }
 
 function handleGlobalKeyUp(event) {
@@ -232,8 +233,23 @@ async function handleUpdateProfile(token) {
     const form = document.getElementById('updateProfileForm');
     const submitButton = form.querySelector('button[type="submit"]');
     const newUsername = document.getElementById('profileUsername').value;
+    const newSetorId = document.getElementById('profileSetor').value;
 
-    if (newUsername === appState.currentUser.username) {
+    const payload = {};
+    let changed = false;
+
+    if (newUsername !== appState.currentUser.username) {
+        payload.username = newUsername;
+        changed = true;
+    }
+    
+    const currentSetorId = appState.currentUser.setor ? appState.currentUser.setor.id.toString() : "";
+    if (newSetorId !== currentSetorId) {
+        payload.setor_id = newSetorId ? parseInt(newSetorId) : null;
+        changed = true;
+    }
+
+    if (!changed) {
         showToast('Nenhuma alteração para salvar.', 'info');
         return;
     }
@@ -242,16 +258,44 @@ async function handleUpdateProfile(token) {
     try {
         const updatedUser = await apiFetch(`${API_URL}/users/me`, token, {
             method: 'PUT',
-            body: { username: newUsername }
+            body: payload
         });
 
         appState.currentUser = updatedUser;
         document.getElementById('user-greeting').textContent = `Olá, ${updatedUser.username}!`;
-        showToast('Nome de usuário atualizado com sucesso!', 'success');
+        showToast('Perfil atualizado com sucesso!', 'success');
 
     } catch (e) {
         showToast(`Erro: ${e.message}`, 'danger');
         document.getElementById('profileUsername').value = appState.currentUser.username;
+        document.getElementById('profileSetor').value = currentSetorId;
+    } finally {
+        setButtonLoading(submitButton, false);
+    }
+}
+
+async function handleAdminUpdateSector(token) {
+    const form = document.getElementById('userSectorForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const userId = form.dataset.userId;
+    const setor_id = document.getElementById('userSectorSelect').value;
+
+    setButtonLoading(submitButton, true, 'Salvando...');
+    try {
+        const updatedUser = await apiFetch(`${API_URL}/admin/users/${userId}/sector`, token, {
+            method: 'PATCH',
+            body: { setor_id: setor_id ? parseInt(setor_id) : null }
+        });
+
+        const row = document.getElementById(`user-row-${userId}`);
+        if (row) {
+            row.querySelector('.sector-cell').innerHTML = updatedUser.setor ? updatedUser.setor.name : '<span class="text-muted">N/A</span>';
+        }
+        
+        showToast('Setor do usuário atualizado!', 'success');
+        bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+    } catch (e) {
+        showToast(`Erro: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(submitButton, false);
     }
@@ -433,7 +477,7 @@ async function handleEnable2FASubmit(token) {
         });
         showToast('2FA ativado com sucesso!', 'success');
         appState.currentUser.otp_enabled = true;
-        loadMyAccountView(appState.currentUser); // Recarrega a view
+        loadMyAccountView(appState.currentUser, token); // CORRIGIDO
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
@@ -459,7 +503,7 @@ async function handleDisable2FA(token) {
         });
         showToast('2FA desativado com sucesso!', 'success');
         appState.currentUser.otp_enabled = false;
-        loadMyAccountView(appState.currentUser); // Recarrega a view
+        loadMyAccountView(appState.currentUser, token); // CORRIGIDO
     } catch (e) {
         showToast(`Erro ao desativar 2FA: ${e.message}`, 'danger');
     } finally {

@@ -1,6 +1,6 @@
 # app/routes/admin.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import or_
 from typing import List, Optional
@@ -8,12 +8,13 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
+from app.models.setor import Setor # <-- IMPORTAR
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.equipment_type import EquipmentType
 from app.models.google_token import GoogleOAuthToken
 from app.schemas.reservation import ReservationOut
-from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
+from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate # <-- IMPORTAR
 from app.schemas.user import UserOut
 from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
@@ -25,6 +26,7 @@ router = APIRouter(
     tags=["Admin Management"]
 )
 
+# ... (código existente da função approve_and_create_calendar_event e da rota /reservations) ...
 def approve_and_create_calendar_event(db: Session, reservation: Reservation):
     user_to_notify = reservation.user
     google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
@@ -92,7 +94,7 @@ def update_reservation_status(
     manager_user: User = Depends(get_current_manager_user)
 ):
     """(Manager) Atualiza o status de uma reserva (approve, reject, return)."""
-    db_reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
+    db_reservation = db.query(Reservation).options(joinedload(Reservation.user), joinedload(Reservation.equipment_unit)).filter(Reservation.id == reservation_id).first()
     if not db_reservation:
         raise HTTPException(status_code=404, detail="Reserva não encontrada.")
 
@@ -121,7 +123,7 @@ def list_users(
     limit: int = 100
 ):
     """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
-    query = db.query(User)
+    query = db.query(User).options(joinedload(User.setor)) # <-- Adicionar joinedload
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -175,6 +177,29 @@ def set_user_role(
     db.commit()
     db.refresh(db_user)
     
+    return db_user
+
+# --- NOVA ROTA ---
+@router.patch("/users/{user_id}/sector", response_model=UserOut)
+def set_user_sector(
+    user_id: int,
+    sector_update: UserSectorUpdate,
+    db: Session = Depends(get_db),
+    manager_user: User = Depends(get_current_manager_user) # Manager ou Admin
+):
+    """(Manager) Define o setor de um usuário."""
+    db_user = db.query(User).options(joinedload(User.setor)).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    if sector_update.setor_id is not None:
+        setor = db.query(Setor).filter(Setor.id == sector_update.setor_id).first()
+        if not setor:
+            raise HTTPException(status_code=404, detail="Setor não encontrado.")
+
+    db_user.setor_id = sector_update.setor_id
+    db.commit()
+    db.refresh(db_user)
     return db_user
 
 @router.get("/logs", response_model=List[ActivityLogOut])

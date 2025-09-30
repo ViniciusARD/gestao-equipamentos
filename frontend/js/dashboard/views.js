@@ -36,7 +36,6 @@ export async function loadDashboardHomeView(token) {
         </div>
     `);
 
-    // Carrega os dados para os cards
     loadUpcomingReservations(token);
     loadPopularEquipment(token);
 }
@@ -99,7 +98,6 @@ async function loadPopularEquipment(token) {
  * @param {string} token - O token de autorização.
  */
 export async function loadEquipmentsView(token, searchTerm = '', categoryFilter = 'all') {
-    // Obter todas as categorias para o filtro, mas sem aplicar os filtros atuais
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
     const categories = [...new Set(allTypesForCategories.map(type => type.category))].sort();
 
@@ -167,7 +165,6 @@ export async function loadEquipmentsView(token, searchTerm = '', categoryFilter 
 /**
  * Carrega a view com as reservas do usuário logado.
  * @param {string} token - O token de autorização.
- * @param {object} params - Objeto com os parâmetros de filtro.
  */
 export async function loadMyReservationsView(token, params = {}) {
     const statusFilters = [
@@ -263,11 +260,17 @@ export async function loadMyReservationsView(token, params = {}) {
 /**
  * Carrega a view de gerenciamento da conta do usuário.
  * @param {object} currentUser - O objeto do usuário logado.
+ * @param {string} token - O token de autorização.
  */
-export function loadMyAccountView(currentUser) {
+export async function loadMyAccountView(currentUser, token) {
     const twoFactorButton = currentUser.otp_enabled
         ? `<button class="btn btn-outline-warning" id="disable2faBtn"><i class="bi bi-shield-slash me-2"></i>Desativar 2FA</button>`
         : `<button class="btn btn-primary" id="enable2faBtn"><i class="bi bi-shield-check me-2"></i>Ativar 2FA</button>`;
+
+    const setores = await apiFetch(`${API_URL}/setores`, token);
+    const setorOptions = setores.map(s =>
+        `<option value="${s.id}" ${currentUser.setor && currentUser.setor.id === s.id ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -283,6 +286,13 @@ export function loadMyAccountView(currentUser) {
                                 <div class="mb-3">
                                     <label for="profileUsername" class="form-label">Nome de Usuário</label>
                                     <input type="text" class="form-control" id="profileUsername" value="${currentUser.username}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="profileSetor" class="form-label">Meu Setor</label>
+                                    <select id="profileSetor" class="form-select">
+                                        <option value="">Nenhum</option>
+                                        ${setorOptions}
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label for="profileEmail" class="form-label">Email</label>

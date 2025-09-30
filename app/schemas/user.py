@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from .setor import SetorOut
 
 # Schema base com os campos comuns
 class UserBase(BaseModel):
@@ -11,6 +12,7 @@ class UserBase(BaseModel):
 # Schema para a criação de um usuário (recebe a senha)
 class UserCreate(UserBase):
     password: str
+    setor_id: Optional[int] = None # <-- ADICIONADO
 
 # Schema para o corpo da requisição de login
 class UserLogin(BaseModel):
@@ -24,9 +26,10 @@ class UserOut(UserBase):
     is_active: bool
     is_verified: bool
     otp_enabled: bool
+    setor: Optional[SetorOut] = None
 
     class Config:
-        from_attributes = True # Permite que o Pydantic leia dados de um objeto ORM (SQLAlchemy)
+        from_attributes = True
 
 # Schema para a resposta do token
 class Token(BaseModel):
@@ -35,11 +38,10 @@ class Token(BaseModel):
 
 # Schema para login com 2FA
 class LoginResponse(BaseModel):
-    login_step: str # 'completed' or '2fa_required'
+    login_step: str 
     access_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
-    temp_token: Optional[str] = None # Token temporário para a verificação 2FA
-
+    temp_token: Optional[str] = None
 
 class TwoFactorRequest(BaseModel):
     temp_token: str
@@ -56,6 +58,7 @@ class ResetPasswordRequest(BaseModel):
  # Schema para atualização do perfil do usuário ---
 class UserUpdate(BaseModel):
     username: Optional[str] = None
+    setor_id: Optional[int] = None
 
 # Schemas para 2FA
 class TwoFactorSetupResponse(BaseModel):
@@ -64,7 +67,7 @@ class TwoFactorSetupResponse(BaseModel):
 
 class TwoFactorEnableRequest(BaseModel):
     otp_code: str
-    otp_secret: str # <-- ADICIONADO AQUI
+    otp_secret: str
 
 class TwoFactorDisableRequest(BaseModel):
     password: str

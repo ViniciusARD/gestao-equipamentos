@@ -1,3 +1,9 @@
+-- Tabela para os setores da instituição
+CREATE TABLE setores (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
 -- Tabela para armazenar os dados dos usuários do sistema
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -5,12 +11,15 @@ CREATE TABLE users (
     email VARCHAR(120) UNIQUE NOT NULL,
     password_hash VARCHAR(256) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'requester', 'manager', 'admin')),
+    setor_id INTEGER, -- NOVO CAMPO
     is_active BOOLEAN NOT NULL DEFAULT true,
     is_verified BOOLEAN NOT NULL DEFAULT false,
     otp_secret VARCHAR(32),
-    otp_enabled BOOLEAN NOT NULL DEFAULT false
+    otp_enabled BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT fk_user_setor FOREIGN KEY(setor_id) REFERENCES setores(id) ON DELETE SET NULL -- NOVA CONSTRAINT
 );
 
+-- (Restante do arquivo SQL continua igual...)
 -- Tabela para os TIPOS de equipamento
 CREATE TABLE equipment_types (
     id SERIAL PRIMARY KEY,
