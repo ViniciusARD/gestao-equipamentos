@@ -22,30 +22,36 @@ function renderUserActions(user, currentUserId) {
     const userRoleIndex = roles.indexOf(user.role);
 
     const sectorButton = `
-        <button class="btn btn-info btn-sm me-1 text-white user-action-btn" data-user-id="${user.id}" data-action="change-sector" title="Alterar Setor">
+        <button class="btn btn-info btn-sm text-white user-action-btn" data-user-id="${user.id}" data-action="change-sector" title="Alterar Setor">
             <i class="bi bi-tag"></i>
         </button>`;
 
-    let promoteButton = '';
+    let promoteButton;
     if (userRoleIndex < roles.length - 1) {
         const nextRole = roles[userRoleIndex + 1];
         promoteButton = `
-            <button class="btn btn-success btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="promote" data-current-role="${user.role}" title="Promover para ${nextRole}" ${isCurrentUser ? 'disabled' : ''}>
+            <button class="btn btn-success btn-sm user-action-btn" data-user-id="${user.id}" data-action="promote" data-current-role="${user.role}" title="Promover para ${nextRole}" ${isCurrentUser ? 'disabled' : ''}>
                 <i class="bi bi-arrow-up-circle"></i>
             </button>`;
     } else {
-        promoteButton = `<button class="btn btn-success btn-sm me-1" disabled title="Já está no nível máximo"><i class="bi bi-arrow-up-circle"></i></button>`;
+        promoteButton = `
+            <button class="btn btn-success btn-sm" disabled title="Já está no nível máximo">
+                <i class="bi bi-arrow-up-circle"></i>
+            </button>`;
     }
 
-    let demoteButton = '';
+    let demoteButton;
     if (userRoleIndex > 0) {
         const prevRole = roles[userRoleIndex - 1];
         demoteButton = `
-            <button class="btn btn-warning btn-sm me-1 user-action-btn" data-user-id="${user.id}" data-action="demote" data-current-role="${user.role}" title="Rebaixar para ${prevRole}" ${isCurrentUser ? 'disabled' : ''}>
+            <button class="btn btn-warning btn-sm user-action-btn" data-user-id="${user.id}" data-action="demote" data-current-role="${user.role}" title="Rebaixar para ${prevRole}" ${isCurrentUser ? 'disabled' : ''}>
                 <i class="bi bi-arrow-down-circle"></i>
             </button>`;
     } else {
-         demoteButton = `<button class="btn btn-warning btn-sm me-1" disabled title="Já está no nível mínimo"><i class="bi bi-arrow-down-circle"></i></button>`;
+        demoteButton = `
+            <button class="btn btn-warning btn-sm" disabled title="Já está no nível mínimo">
+                <i class="bi bi-arrow-down-circle"></i>
+            </button>`;
     }
 
     const deleteButton = `
@@ -53,7 +59,8 @@ function renderUserActions(user, currentUserId) {
             <i class="bi bi-trash"></i>
         </button>`;
 
-    return `${sectorButton}${promoteButton}${demoteButton}${deleteButton}`;
+    // Envolve os botões em um container flex com espaçamento (gap) para garantir o alinhamento
+    return `<div class="d-flex gap-1">${sectorButton}${promoteButton}${demoteButton}${deleteButton}</div>`;
 }
 
 function renderInventoryRow(type) {

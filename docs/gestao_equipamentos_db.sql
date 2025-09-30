@@ -19,7 +19,6 @@ CREATE TABLE users (
     CONSTRAINT fk_user_setor FOREIGN KEY(setor_id) REFERENCES setores(id) ON DELETE SET NULL -- NOVA CONSTRAINT
 );
 
--- (Restante do arquivo SQL continua igual...)
 -- Tabela para os TIPOS de equipamento
 CREATE TABLE equipment_types (
     id SERIAL PRIMARY KEY,
