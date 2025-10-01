@@ -8,13 +8,14 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
-from app.models.setor import Setor # <-- IMPORTAR
+from app.models.setor import Setor
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.equipment_type import EquipmentType
 from app.models.google_token import GoogleOAuthToken
+from app.models.unit_history import UnitHistory # <<-- IMPORTAR
 from app.schemas.reservation import ReservationOut
-from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate # <-- IMPORTAR
+from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate
 from app.schemas.user import UserOut
 from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
@@ -26,7 +27,6 @@ router = APIRouter(
     tags=["Admin Management"]
 )
 
-# ... (código existente da função approve_and_create_calendar_event e da rota /reservations) ...
 def approve_and_create_calendar_event(db: Session, reservation: Reservation):
     user_to_notify = reservation.user
     google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
@@ -104,9 +104,32 @@ def update_reservation_status(
         unit.status = 'reserved'
         background_tasks.add_task(approve_and_create_calendar_event, db, db_reservation)
 
-    elif update_data.status.value in ['rejected', 'returned']:
+    elif update_data.status.value == 'rejected':
         unit.status = 'available'
     
+    # <<-- LÓGICA DE DEVOLUÇÃO MODIFICADA -->>
+    elif update_data.status.value == 'returned':
+        db_reservation.return_notes = update_data.return_notes
+        if update_data.return_status == 'maintenance':
+            unit.status = 'maintenance'
+            history_event = UnitHistory(
+                unit_id=unit.id,
+                event_type='sent_to_maintenance',
+                notes=f"Devolvido com defeito: {update_data.return_notes}",
+                user_id=manager_user.id,
+                reservation_id=db_reservation.id
+            )
+        else:
+            unit.status = 'available'
+            history_event = UnitHistory(
+                unit_id=unit.id,
+                event_type='returned_ok',
+                notes=update_data.return_notes,
+                user_id=manager_user.id,
+                reservation_id=db_reservation.id
+            )
+        db.add(history_event)
+
     db_reservation.status = update_data.status.value
     db.commit()
     db.refresh(db_reservation)
@@ -123,7 +146,7 @@ def list_users(
     limit: int = 100
 ):
     """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
-    query = db.query(User).options(joinedload(User.setor)) # <-- Adicionar joinedload
+    query = db.query(User).options(joinedload(User.setor))
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -179,7 +202,6 @@ def set_user_role(
     
     return db_user
 
-# --- NOVA ROTA ---
 @router.patch("/users/{user_id}/sector", response_model=UserOut)
 def set_user_sector(
     user_id: int,

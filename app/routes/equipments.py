@@ -1,7 +1,7 @@
 # app/routes/equipments.py
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, subqueryload
+from sqlalchemy.orm import Session, subqueryload, joinedload
 from sqlalchemy import func, case, or_
 from typing import List, Optional
 
@@ -10,11 +10,13 @@ from app.models.equipment_type import EquipmentType
 from app.models.equipment_unit import EquipmentUnit
 from app.models.user import User
 from app.models.reservation import Reservation
+from app.models.unit_history import UnitHistory # <<-- IMPORTAR
 from app.schemas.equipment import (
     EquipmentTypeCreate, EquipmentTypeOut, EquipmentTypeUpdate,
     EquipmentUnitCreate, EquipmentUnitOut, EquipmentUnitUpdate,
     EquipmentTypeWithUnitsOut, EquipmentTypeStatsOut
 )
+from app.schemas.unit_history import UnitHistoryOut # <<-- IMPORTAR
 from app.security import get_current_user, get_current_manager_user
 from app.logging_utils import create_log
 
@@ -79,10 +81,8 @@ def list_equipment_types(
     if category and category != "all":
         query = query.filter(EquipmentType.category == category)
     
-    # Adicionando o agrupamento antes de filtrar pela agregação
     query = query.group_by(EquipmentType.id)
 
-    # Novo filtro de disponibilidade
     if availability == "available":
         query = query.having(available_units_subquery > 0)
     elif availability == "unavailable":
@@ -91,7 +91,6 @@ def list_equipment_types(
 
     results = query.order_by(EquipmentType.name).all()
     
-    # Monta a resposta no formato do Pydantic
     stats_out = []
     for type_obj, total_units, available_units in results:
         stats_out.append(
@@ -171,6 +170,16 @@ def create_equipment_unit(
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
+
+    # <<-- Adiciona evento de criação ao histórico -->>
+    history_event = UnitHistory(
+        unit_id=new_unit.id,
+        event_type='created',
+        notes=f"Unidade criada com status '{new_unit.status}'.",
+        user_id=manager_user.id
+    )
+    db.add(history_event)
+    db.commit()
     
     create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' para o tipo '{db_type.name}'.")
     
@@ -180,6 +189,28 @@ def create_equipment_unit(
 def list_all_units(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """(Usuários Autenticados) Lista todas as unidades de equipamentos."""
     return db.query(EquipmentUnit).all()
+
+# <<-- NOVA ROTA DE HISTÓRICO -->>
+@router.get("/units/{unit_id}/history", response_model=List[UnitHistoryOut])
+def get_unit_history(
+    unit_id: int,
+    db: Session = Depends(get_db),
+    manager_user: User = Depends(get_current_manager_user)
+):
+    """(Manager) Retorna o histórico de eventos de uma unidade específica."""
+    unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
+
+    history = (
+        db.query(UnitHistory)
+        .options(joinedload(UnitHistory.user))
+        .filter(UnitHistory.unit_id == unit_id)
+        .order_by(UnitHistory.created_at.desc())
+        .all()
+    )
+    return history
+
 
 @router.put("/units/{unit_id}", response_model=EquipmentUnitOut)
 def update_equipment_unit(
@@ -239,7 +270,6 @@ def delete_equipment_unit(
 def get_popular_equipment_types(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Retorna os 5 tipos de equipamentos mais reservados."""
     
-    # Subconsulta para contar as reservas por tipo de equipamento
     popular_types_subquery = (
         db.query(
             EquipmentType.id,
@@ -253,7 +283,6 @@ def get_popular_equipment_types(db: Session = Depends(get_db), current_user: Use
         .subquery()
     )
 
-    # Consulta principal para obter os detalhes dos tipos mais populares
     popular_types = (
         db.query(EquipmentType)
         .join(popular_types_subquery, EquipmentType.id == popular_types_subquery.c.id)

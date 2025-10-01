@@ -15,3 +15,5 @@ class EquipmentUnit(Base):
     equipment_type = relationship("EquipmentType", back_populates="units")
     # Adiciona o relacionamento inverso e a cascata
     reservations = relationship("Reservation", back_populates="equipment_unit", cascade="all, delete-orphan")
+    # <<-- NOVO RELACIONAMENTO -->>
+    history = relationship("UnitHistory", back_populates="unit", cascade="all, delete-orphan")

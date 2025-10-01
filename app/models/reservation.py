@@ -1,6 +1,6 @@
 # app/models/reservation.py
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -14,6 +14,10 @@ class Reservation(Base):
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
+    
+    # <<-- NOVA COLUNA -->>
+    return_notes = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Adiciona o back_populates para consistência

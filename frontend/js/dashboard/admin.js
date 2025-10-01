@@ -11,7 +11,8 @@ function renderAdminReservationActions(reservation) {
         `;
     }
     if (reservation.status === 'approved') {
-        return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
+        // <<-- BOTÃO MODIFICADO PARA ABRIR O MODAL -->>
+        return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
     }
     return '---';
 }
@@ -59,7 +60,6 @@ function renderUserActions(user, currentUserId) {
             <i class="bi bi-trash"></i>
         </button>`;
 
-    // Envolve os botões em um container flex com espaçamento (gap) para garantir o alinhamento
     return `<div class="d-flex gap-1">${sectorButton}${promoteButton}${demoteButton}${deleteButton}</div>`;
 }
 
@@ -400,9 +400,20 @@ export async function loadSystemLogsView(token, params = {}) {
     }
 }
 
-
+// <<-- LÓGICA DE ATUALIZAÇÃO MODIFICADA -->>
 export async function handleUpdateReservationStatus(button, token) {
-    const { reservationId, action } = button.dataset;
+    const { reservationId, action, unitIdentifier } = button.dataset;
+
+    if (action === 'returned') {
+        const returnModal = new bootstrap.Modal(document.getElementById('returnModal'));
+        document.getElementById('returnReservationId').value = reservationId;
+        document.getElementById('returnUnitIdentifier').textContent = unitIdentifier;
+        document.getElementById('returnForm').reset();
+        document.getElementById('returnMessage').innerHTML = '';
+        returnModal.show();
+        return;
+    }
+    
     setButtonLoading(button, true);
     try {
         const updated = await apiFetch(`${API_URL}/admin/reservations/${reservationId}`, token, { method: 'PATCH', body: { status: action } });

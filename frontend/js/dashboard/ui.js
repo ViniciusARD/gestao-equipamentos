@@ -1,10 +1,7 @@
 // js/dashboard/ui.js
 
-/**
- * Renderiza um distintivo (badge) de status com cores apropriadas.
- * @param {string} status - O status a ser renderizado.
- * @returns {string} - O HTML do badge.
- */
+import { API_URL, apiFetch } from './api.js';
+
 export function renderStatusBadge(status) {
     const statusMap = {
         'pending': 'warning',
@@ -20,11 +17,6 @@ export function renderStatusBadge(status) {
     return `<span class="badge bg-${badgeClass}">${statusText}</span>`;
 }
 
-/**
- * Renderiza um distintivo (badge) para o nível de permissão (role).
- * @param {string} role - A permissão (user, requester, manager, admin).
- * @returns {string} - O HTML do badge.
- */
 export function renderRoleBadge(role) {
     const map = {
         'admin': { bg: 'danger', text: 'Admin' },
@@ -36,12 +28,6 @@ export function renderRoleBadge(role) {
     return `<span class="badge bg-${roleInfo.bg}">${roleInfo.text}</span>`;
 }
 
-
-/**
- * Renderiza um distintivo (badge) para o nível de log.
- * @param {string} level - O nível do log (INFO, WARNING, ERROR).
- * @returns {string} - O HTML do badge.
- */
 export function renderLogLevelBadge(level) {
     const map = {
         'INFO': 'info',
@@ -51,10 +37,6 @@ export function renderLogLevelBadge(level) {
     return `<span class="badge bg-${map[level.toUpperCase()] || 'secondary'}">${level}</span>`;
 }
 
-/**
- * Insere o HTML em um container principal e exibe um spinner de carregamento.
- * @param {string} html - O HTML da estrutura da view.
- */
 export function renderView(html) {
     const mainContent = document.getElementById('main-content');
     mainContent.innerHTML = html;
@@ -64,12 +46,6 @@ export function renderView(html) {
     }
 }
 
-/**
- * Controla o estado de carregamento de um botão.
- * @param {HTMLElement} button - O elemento do botão.
- * @param {boolean} isLoading - Se deve mostrar o estado de carregamento.
- * @param {string|null} loadingText - O texto a ser exibido durante o carregamento.
- */
 export function setButtonLoading(button, isLoading, loadingText = null) {
     if (isLoading) {
         button.disabled = true;
@@ -84,18 +60,11 @@ export function setButtonLoading(button, isLoading, loadingText = null) {
     }
 }
 
-/**
- * Marca o item de navegação ativo na barra lateral.
- * @param {HTMLElement} element - O elemento `<a>` clicado.
- */
 export function setActiveNav(element) {
     document.querySelectorAll('#sidebar-wrapper .list-group-item').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
 }
 
-/**
- * Cria o container para as notificações (toasts) se não existir.
- */
 export function createToastContainer() {
     if (document.getElementById('toast-container')) return;
     const container = document.createElement('div');
@@ -105,11 +74,6 @@ export function createToastContainer() {
     document.body.appendChild(container);
 }
 
-/**
- * Exibe uma notificação (toast).
- * @param {string} message - A mensagem a ser exibida.
- * @param {string} type - O tipo do toast (e.g., 'info', 'success', 'danger').
- */
 export function showToast(message, type = 'info') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
@@ -182,4 +146,49 @@ export function resetUnitForm() {
     document.getElementById('unitFormUnitId').value = '';
     document.getElementById('unitFormMessage').innerHTML = '';
     document.getElementById('cancelEditUnitBtn').style.display = 'none';
+}
+
+// <<-- NOVA FUNÇÃO PARA ABRIR O MODAL DE HISTÓRICO -->>
+export async function openUnitHistoryModal(unitId, token) {
+    const modal = new bootstrap.Modal(document.getElementById('unitHistoryModal'));
+    const modalTitle = document.getElementById('unitHistoryModalLabel');
+    const modalBody = document.getElementById('unitHistoryBody');
+
+    modalTitle.textContent = `Histórico da Unidade ID: ${unitId}`;
+    modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+    modal.show();
+
+    try {
+        const history = await apiFetch(`${API_URL}/equipments/units/${unitId}/history`, token);
+        if (history.length === 0) {
+            modalBody.innerHTML = '<p class="text-muted">Nenhum evento registrado para esta unidade.</p>';
+            return;
+        }
+
+        const eventTypeTranslations = {
+            created: { text: "Criação", class: "primary" },
+            returned_ok: { text: "Devolvido (OK)", class: "success" },
+            sent_to_maintenance: { text: "Manutenção", class: "danger" },
+        };
+
+        modalBody.innerHTML = `
+            <ul class="list-group">
+                ${history.map(entry => {
+                    const eventInfo = eventTypeTranslations[entry.event_type] || { text: entry.event_type, class: "secondary" };
+                    return `
+                        <li class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><span class="badge bg-${eventInfo.class}">${eventInfo.text}</span></h6>
+                                <small>${new Date(entry.created_at).toLocaleString('pt-BR')}</small>
+                            </div>
+                            <p class="mb-1">${entry.notes || '<i>Sem observações.</i>'}</p>
+                            <small class="text-muted">Registrado por: ${entry.user ? entry.user.username : 'Sistema'}</small>
+                        </li>
+                    `;
+                }).join('')}
+            </ul>
+        `;
+    } catch (e) {
+        modalBody.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
 }

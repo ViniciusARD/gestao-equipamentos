@@ -1,7 +1,7 @@
 // js/dashboard/events.js
 
 import { API_URL, apiFetch } from './api.js';
-import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge } from './ui.js';
+import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge, openUnitHistoryModal } from './ui.js';
 import { loadDashboardHomeView, loadEquipmentsView, loadMyReservationsView, loadMyAccountView, fetchAndShowUnits } from './views.js';
 import {
     loadManageReservationsView,
@@ -22,8 +22,6 @@ export function initializeEvents(state) {
     document.body.addEventListener('keyup', handleGlobalKeyUp);
     document.body.addEventListener('change', handleGlobalChange);
 }
-
-// --- Funções de Manipulação de Eventos (Handlers) ---
 
 async function handleGlobalClick(event) {
     const target = event.target.closest('a, button');
@@ -61,16 +59,12 @@ async function handleGlobalClick(event) {
     if (target.matches('#deleteAccountBtn')) handleDeleteAccount(target, token);
     if (target.matches('#enable2faBtn')) handleEnable2FA(token);
     if (target.matches('#disable2faBtn')) handleDisable2FA(token);
-
-    // --- Handlers para os botões de APLICAR FILTRO ---
     if (target.matches('#applyReservationsFilterBtn')) applyAdminReservationsFilter();
     if (target.matches('#applyMyReservationsFilterBtn')) applyMyReservationsFilter();
     if (target.matches('#searchUsersBtn')) applyUsersFilter();
     if (target.matches('#searchInventoryBtn')) applyInventoryFilter();
     if (target.matches('#applyLogsFilterBtn')) applyLogsFilter();
 
-
-    // --- Handlers para cliques em botões de filtro (que recarregam a view) ---
     if (target.matches('.status-filter-btn')) {
         document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
         target.classList.replace('btn-outline-primary', 'btn-primary');
@@ -116,6 +110,7 @@ async function handleGlobalSubmit(event) {
     else if (event.target.id === 'updateProfileForm') handleUpdateProfile(token);
     else if (event.target.id === '2faEnableForm') handleEnable2FASubmit(token);
     else if (event.target.id === 'userSectorForm') handleAdminUpdateSector(token);
+    else if (event.target.id === 'returnForm') handleReturnSubmit(token); // <<-- NOVO HANDLER
 }
 
 function handleGlobalKeyUp(event) {
@@ -128,8 +123,6 @@ function handleGlobalKeyUp(event) {
     if (target.matches('#inventorySearchInput')) applyInventoryFilter();
     if (target.matches('#logsSearchInput')) applyLogsFilter();
 }
-
-// --- Funções Genéricas para Aplicar Filtros ---
 
 function applyAdminReservationsFilter() {
     const token = appState.token;
@@ -191,9 +184,6 @@ function applyLogsFilter() {
     loadSystemLogsView(token, params);
 }
 
-
-// --- Lógica de Handlers específicos ---
-
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -221,7 +211,7 @@ async function handleReservationSubmit(token) {
         showToast('Reserva solicitada!', 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         form.reset();
-        applyMyReservationsFilter(); // Recarrega a view com os filtros atuais
+        applyMyReservationsFilter();
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     } finally {
@@ -370,6 +360,7 @@ function populateUnitsTable(units) {
             <td>${unit.identifier_code || 'N/A'}</td>
             <td>${renderStatusBadge(unit.status)}</td>
             <td>
+                <button class="btn btn-info btn-sm text-white me-1 unit-action-btn" data-action="history" data-unit-id="${unit.id}" title="Ver Histórico"><i class="bi bi-clock-history"></i></button>
                 <button class="btn btn-secondary btn-sm me-1 unit-action-btn" data-action="edit" data-unit-id="${unit.id}" title="Editar Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-danger btn-sm unit-action-btn" data-action="delete" data-unit-id="${unit.id}" title="Excluir Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
             </td>
@@ -426,6 +417,8 @@ async function handleUnitAction(button, token) {
             showToast(`Erro: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
+    } else if (action === 'history') { // <<-- NOVO HANDLER
+        openUnitHistoryModal(unitId, token);
     }
 }
 
@@ -436,8 +429,6 @@ function prepareUnitFormForEdit(unit) {
     document.getElementById('unitStatus').value = unit.status;
     document.getElementById('cancelEditUnitBtn').style.display = 'block';
 }
-
-// --- Funções 2FA ---
 
 async function handleEnable2FA(token) {
     const modal = new bootstrap.Modal(document.getElementById('2faSetupModal'));
@@ -477,7 +468,7 @@ async function handleEnable2FASubmit(token) {
         });
         showToast('2FA ativado com sucesso!', 'success');
         appState.currentUser.otp_enabled = true;
-        loadMyAccountView(appState.currentUser, token); // CORRIGIDO
+        loadMyAccountView(appState.currentUser, token);
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
@@ -503,10 +494,48 @@ async function handleDisable2FA(token) {
         });
         showToast('2FA desativado com sucesso!', 'success');
         appState.currentUser.otp_enabled = false;
-        loadMyAccountView(appState.currentUser, token); // CORRIGIDO
+        loadMyAccountView(appState.currentUser, token);
     } catch (e) {
         showToast(`Erro ao desativar 2FA: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(button, false);
+    }
+}
+
+// <<-- NOVA FUNÇÃO PARA SUBMISSÃO DO MODAL DE DEVOLUÇÃO -->>
+async function handleReturnSubmit(token) {
+    const form = document.getElementById('returnForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById('returnMessage');
+    const reservationId = document.getElementById('returnReservationId').value;
+
+    const payload = {
+        status: 'returned',
+        return_status: form.querySelector('input[name="returnStatus"]:checked').value,
+        return_notes: document.getElementById('returnNotes').value.trim()
+    };
+
+    setButtonLoading(submitButton, true, 'Confirmando...');
+    messageDiv.innerHTML = '';
+
+    try {
+        const updated = await apiFetch(`${API_URL}/admin/reservations/${reservationId}`, token, {
+            method: 'PATCH',
+            body: payload
+        });
+
+        const row = document.getElementById(`reservation-row-${updated.id}`);
+        if (row) {
+            row.querySelector('.status-cell').innerHTML = renderStatusBadge(updated.status);
+            row.querySelector('.action-cell').innerHTML = '---';
+        }
+        
+        showToast('Devolução registrada com sucesso!', 'success');
+        bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+
+    } catch(e) {
+        messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    } finally {
+        setButtonLoading(submitButton, false);
     }
 }

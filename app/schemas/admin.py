@@ -13,6 +13,10 @@ class ReservationStatusEnum(str, Enum):
 
 class ReservationStatusUpdate(BaseModel):
     status: ReservationStatusEnum
+    # <<-- NOVOS CAMPOS -->>
+    return_status: Optional[str] = None # 'ok' or 'maintenance'
+    return_notes: Optional[str] = None
+
 
 # --- Schemas para Gerenciamento de Usuários ---
 
