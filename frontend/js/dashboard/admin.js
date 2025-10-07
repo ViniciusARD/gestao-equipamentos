@@ -1,8 +1,9 @@
 // js/dashboard/admin.js
 
 import { API_URL, apiFetch } from './api.js';
-import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading } from './ui.js';
+import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading, openSectorModal } from './ui.js';
 
+// ... (funções renderAdminReservationActions, renderUserActions, renderInventoryRow existentes)
 function renderAdminReservationActions(reservation) {
     if (reservation.status === 'pending') {
         return `
@@ -11,7 +12,6 @@ function renderAdminReservationActions(reservation) {
         `;
     }
     if (reservation.status === 'approved') {
-        // <<-- BOTÃO MODIFICADO PARA ABRIR O MODAL -->>
         return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
     }
     return '---';
@@ -78,6 +78,8 @@ function renderInventoryRow(type) {
         </tr>
     `;
 }
+
+// ... (demais funções de `load...` existentes)
 
 export async function loadManageReservationsView(token, params = {}) {
     const statusFilters = [
@@ -400,7 +402,62 @@ export async function loadSystemLogsView(token, params = {}) {
     }
 }
 
-// <<-- LÓGICA DE ATUALIZAÇÃO MODIFICADA -->>
+
+// ATUALIZADA: Agora aceita um `searchTerm`
+export async function loadManageSectorsView(token, searchTerm = '') {
+    renderView(`
+        <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Gerenciar Setores</h1>
+            <button class="btn btn-primary" id="add-sector-btn"><i class="bi bi-plus-circle me-2"></i>Adicionar Setor</button>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="search" id="sectorsSearchInput" class="form-control" placeholder="Buscar por nome do setor..." value="${searchTerm}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchSectorsBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+        </div>
+        <div id="listContainer" class="table-responsive"></div>
+    `);
+
+    const container = document.getElementById('listContainer');
+    try {
+        const url = new URL(`${API_URL}/setores`);
+        if (searchTerm) {
+            url.searchParams.append('search', searchTerm);
+        }
+        const setores = await apiFetch(url, token);
+        
+        if (setores.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">Nenhum setor encontrado.</p>';
+            return;
+        }
+        container.innerHTML = `
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+                </thead>
+                <tbody>
+                    ${setores.map(setor => `
+                        <tr id="sector-row-${setor.id}">
+                            <td>${setor.id}</td>
+                            <td class="sector-name-cell">${setor.name}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm me-1 sector-action-btn" data-action="edit" data-sector-id="${setor.id}" data-sector-name="${setor.name}" title="Editar Setor"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-danger btn-sm sector-action-btn" data-action="delete" data-sector-id="${setor.id}" data-sector-name="${setor.name}" title="Excluir Setor"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+// ... (demais funções handle... existentes)
 export async function handleUpdateReservationStatus(button, token) {
     const { reservationId, action, unitIdentifier } = button.dataset;
 

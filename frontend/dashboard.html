@@ -31,6 +31,7 @@
                 <div id="admin-menu" class="d-none">
                     <div class="sidebar-heading admin-heading">Admin</div>
                     <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-manage-users"><i class="bi bi-people me-2"></i> Gerir Usuários</a>
+                    <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-manage-setores"><i class="bi bi-tags-fill me-2"></i> Gerir Setores</a>
                     <a href="#" class="list-group-item list-group-item-action bg-dark" id="nav-system-logs"><i class="bi bi-card-list me-2"></i> Logs do Sistema</a>
                 </div>
             </div>
@@ -99,6 +100,22 @@
                         <div class="mb-3"><label for="typeCategory" class="form-label">Categoria</label><input type="text" class="form-control" id="typeCategory" required></div>
                         <div class="mb-3"><label for="typeDescription" class="form-label">Descrição</label><textarea class="form-control" id="typeDescription" rows="3"></textarea></div>
                         <div id="equipmentTypeMessage" class="mt-3"></div>
+                        <div class="modal-footer pb-0"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="sectorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title" id="sectorModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="sectorForm">
+                        <input type="hidden" id="sectorId">
+                        <div class="mb-3"><label for="sectorName" class="form-label">Nome do Setor</label><input type="text" class="form-control" id="sectorName" required></div>
+                        <div id="sectorMessage" class="mt-3"></div>
                         <div class="modal-footer pb-0"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
                     </form>
                 </div>
@@ -209,7 +226,6 @@
         </div>
     </div>
 
-    > -->
     <div class="modal fade" id="returnModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -248,7 +264,6 @@
         </div>
     </div>
     
-    > -->
     <div class="modal fade" id="unitHistoryModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">

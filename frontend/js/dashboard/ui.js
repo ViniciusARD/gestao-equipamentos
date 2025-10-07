@@ -126,6 +126,20 @@ export function openEquipmentTypeModal(type = null) {
     modal.show();
 }
 
+// <<-- NOVA FUNÇÃO PARA ABRIR MODAL DE SETOR -->>
+export function openSectorModal(sector = null) {
+    const modal = new bootstrap.Modal(document.getElementById('sectorModal'));
+    const form = document.getElementById('sectorForm');
+    form.reset();
+    document.getElementById('sectorMessage').innerHTML = '';
+    document.getElementById('sectorModalLabel').textContent = sector ? `Editar Setor: ${sector.name}` : 'Adicionar Novo Setor';
+    form.sectorId.value = sector ? sector.id : '';
+    if (sector) {
+        form.sectorName.value = sector.name;
+    }
+    modal.show();
+}
+
 export function openManageUnitsModal(typeId, typeName) {
     const modal = new bootstrap.Modal(document.getElementById('manageUnitsModal'));
     const modalLabel = document.getElementById('manageUnitsModalLabel');
@@ -148,7 +162,6 @@ export function resetUnitForm() {
     document.getElementById('cancelEditUnitBtn').style.display = 'none';
 }
 
-// <<-- NOVA FUNÇÃO PARA ABRIR O MODAL DE HISTÓRICO -->>
 export async function openUnitHistoryModal(unitId, token) {
     const modal = new bootstrap.Modal(document.getElementById('unitHistoryModal'));
     const modalTitle = document.getElementById('unitHistoryModalLabel');

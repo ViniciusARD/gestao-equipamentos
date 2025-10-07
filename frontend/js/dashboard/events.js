@@ -1,13 +1,14 @@
 // js/dashboard/events.js
 
 import { API_URL, apiFetch } from './api.js';
-import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge, openUnitHistoryModal } from './ui.js';
+import { showToast, setButtonLoading, openReserveModal, openEquipmentTypeModal, openManageUnitsModal, resetUnitForm, renderStatusBadge, openUnitHistoryModal, openSectorModal } from './ui.js';
 import { loadDashboardHomeView, loadEquipmentsView, loadMyReservationsView, loadMyAccountView, fetchAndShowUnits } from './views.js';
 import {
     loadManageReservationsView,
     loadManageUsersView,
     loadManageInventoryView,
     loadSystemLogsView,
+    loadManageSectorsView,
     handleUpdateReservationStatus,
     handleUserAction,
     handleEquipmentTypeSubmit
@@ -37,6 +38,7 @@ async function handleGlobalClick(event) {
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
         'nav-manage-inventory': () => loadManageInventoryView(token),
+        'nav-manage-setores': () => loadManageSectorsView(token),
         'nav-system-logs': () => loadSystemLogsView(token, {})
     };
     if (navActions[target.id]) {
@@ -64,6 +66,11 @@ async function handleGlobalClick(event) {
     if (target.matches('#searchUsersBtn')) applyUsersFilter();
     if (target.matches('#searchInventoryBtn')) applyInventoryFilter();
     if (target.matches('#applyLogsFilterBtn')) applyLogsFilter();
+
+    if (target.matches('#add-sector-btn')) openSectorModal();
+    if (target.matches('.sector-action-btn')) handleSectorAction(target, token);
+    if (target.matches('#searchSectorsBtn')) applySectorsFilter(); // <-- NOVO EVENTO DE CLIQUE
+
 
     if (target.matches('.status-filter-btn')) {
         document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
@@ -110,7 +117,8 @@ async function handleGlobalSubmit(event) {
     else if (event.target.id === 'updateProfileForm') handleUpdateProfile(token);
     else if (event.target.id === '2faEnableForm') handleEnable2FASubmit(token);
     else if (event.target.id === 'userSectorForm') handleAdminUpdateSector(token);
-    else if (event.target.id === 'returnForm') handleReturnSubmit(token); // <<-- NOVO HANDLER
+    else if (event.target.id === 'returnForm') handleReturnSubmit(token);
+    else if (event.target.id === 'sectorForm') handleSectorFormSubmit(token);
 }
 
 function handleGlobalKeyUp(event) {
@@ -122,7 +130,10 @@ function handleGlobalKeyUp(event) {
     if (target.matches('#myReservationsSearchInput')) applyMyReservationsFilter();
     if (target.matches('#inventorySearchInput')) applyInventoryFilter();
     if (target.matches('#logsSearchInput')) applyLogsFilter();
+    if (target.matches('#sectorsSearchInput')) applySectorsFilter(); // <-- NOVO EVENTO DE TECLA
 }
+
+// ... (todas as funções apply...Filter existentes)
 
 function applyAdminReservationsFilter() {
     const token = appState.token;
@@ -184,6 +195,14 @@ function applyLogsFilter() {
     loadSystemLogsView(token, params);
 }
 
+// <-- NOVA FUNÇÃO PARA APLICAR FILTRO DE SETORES -->
+function applySectorsFilter() {
+    const token = appState.token;
+    const searchTerm = document.getElementById('sectorsSearchInput').value.trim();
+    loadManageSectorsView(token, searchTerm);
+}
+
+// ... (demais funções handle... existentes)
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -417,7 +436,7 @@ async function handleUnitAction(button, token) {
             showToast(`Erro: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
-    } else if (action === 'history') { // <<-- NOVO HANDLER
+    } else if (action === 'history') {
         openUnitHistoryModal(unitId, token);
     }
 }
@@ -502,7 +521,6 @@ async function handleDisable2FA(token) {
     }
 }
 
-// <<-- NOVA FUNÇÃO PARA SUBMISSÃO DO MODAL DE DEVOLUÇÃO -->>
 async function handleReturnSubmit(token) {
     const form = document.getElementById('returnForm');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -534,6 +552,53 @@ async function handleReturnSubmit(token) {
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
 
     } catch(e) {
+        messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    } finally {
+        setButtonLoading(submitButton, false);
+    }
+}
+
+async function handleSectorAction(button, token) {
+    const { action, sectorId, sectorName } = button.dataset;
+
+    if (action === 'edit') {
+        openSectorModal({ id: sectorId, name: sectorName });
+    } else if (action === 'delete') {
+        if (!confirm(`Tem certeza que deseja excluir o setor "${sectorName}"? Esta ação não pode ser desfeita.`)) return;
+        
+        setButtonLoading(button, true);
+        try {
+            await apiFetch(`${API_URL}/setores/${sectorId}`, token, { method: 'DELETE' });
+            document.getElementById(`sector-row-${sectorId}`).remove();
+            showToast('Setor excluído com sucesso!', 'success');
+        } catch (e) {
+            showToast(`Erro: ${e.message}`, 'danger');
+            setButtonLoading(button, false);
+        }
+    }
+}
+
+async function handleSectorFormSubmit(token) {
+    const form = document.getElementById('sectorForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById('sectorMessage');
+    const sectorId = form.sectorId.value;
+    const sectorName = form.sectorName.value;
+
+    setButtonLoading(submitButton, true, 'Salvando...');
+    messageDiv.innerHTML = '';
+    
+    try {
+        const method = sectorId ? 'PUT' : 'POST';
+        const url = sectorId ? `${API_URL}/setores/${sectorId}` : `${API_URL}/setores`;
+        await apiFetch(url, token, {
+            method,
+            body: { name: sectorName }
+        });
+        showToast(`Setor ${sectorId ? 'atualizado' : 'criado'} com sucesso!`, 'success');
+        bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+        loadManageSectorsView(token);
+    } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     } finally {
         setButtonLoading(submitButton, false);

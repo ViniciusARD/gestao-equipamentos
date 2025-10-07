@@ -1,13 +1,13 @@
 # app/routes/setores.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.setor import Setor
 from app.schemas.setor import SetorCreate, SetorOut, SetorUpdate
-from app.security import get_current_admin_user
+from app.security import get_current_admin_user, get_current_user
 from app.models.user import User
 
 router = APIRouter(
@@ -32,9 +32,20 @@ def create_setor(
     return new_setor
 
 @router.get("/", response_model=List[SetorOut])
-def list_setores(db: Session = Depends(get_db)): # <-- DEPENDÊNCIA REMOVIDA
-    """Lista todos os setores disponíveis (acesso público)."""
-    return db.query(Setor).order_by(Setor.name).all()
+def list_setores(
+    db: Session = Depends(get_db),
+    # Adicionamos o parâmetro de busca (search) opcional
+    search: Optional[str] = Query(None),
+    # A autenticação é necessária para proteger a rota de busca
+    current_user: User = Depends(get_current_user)
+):
+    """Lista todos os setores disponíveis, com filtro de busca (acesso autenticado)."""
+    query = db.query(Setor)
+    if search:
+        # Filtra o nome do setor se um termo de busca for fornecido
+        query = query.filter(Setor.name.ilike(f"%{search}%"))
+    return query.order_by(Setor.name).all()
+
 
 @router.put("/{setor_id}", response_model=SetorOut)
 def update_setor(
