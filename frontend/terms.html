@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termos de Uso - EquipControl</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .legal-container { max-width: 800px; margin: 2rem auto; padding: 2rem; background-color: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .btn-back { position: fixed; top: 20px; left: 20px; }
+    </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="btn btn-light btn-back">&larr; Voltar</a>
+    <div id="legal-content" class="legal-container">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Carrega o conteúdo dinamicamente do backend para evitar duplicação
+        document.addEventListener('DOMContentLoaded', async () => {
+            const contentDiv = document.getElementById('legal-content');
+            try {
+                const response = await fetch('http://127.0.0.1:8000/terms');
+                if (!response.ok) throw new Error('Falha ao carregar os termos.');
+                const html = await response.text();
+                contentDiv.innerHTML = html;
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>
