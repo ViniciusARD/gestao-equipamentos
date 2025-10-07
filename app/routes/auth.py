@@ -67,8 +67,8 @@ async def register_user(
         setor_id=user.setor_id,
         is_active=False,
         is_verified=False,
-        terms_accepted=True, # <-- SALVAR ACEITE
-        terms_accepted_at=datetime.now(timezone.utc) # <-- SALVAR DATA
+        terms_accepted=True,
+        terms_accepted_at=datetime.now(timezone.utc)
     )
 
     db.add(new_user)
@@ -122,6 +122,10 @@ def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(ge
 
     if not user.is_active or not user.is_verified:
         raise HTTPException(status_code=403, detail="Sua conta está inativa ou não foi verificada.")
+
+    # <<-- NOVA VERIFICAÇÃO ADICIONADA AQUI -->>
+    if not user.terms_accepted:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você precisa aceitar os Termos de Uso para fazer login.")
 
     if user.otp_enabled:
         temp_token_data = {"sub": str(user.id), "scope": "2fa_verification"}
