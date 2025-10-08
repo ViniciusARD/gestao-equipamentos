@@ -15,7 +15,7 @@ from app.models.equipment_type import EquipmentType
 from app.models.google_token import GoogleOAuthToken
 from app.models.unit_history import UnitHistory # <<-- IMPORTAR
 from app.schemas.reservation import ReservationOut
-from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate
+from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate, UserStatusUpdate
 from app.schemas.user import UserOut
 from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
@@ -197,6 +197,28 @@ def set_user_role(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um administrador não pode remover a própria permissão.")
     
     db_user.role = role_update.role.value
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user
+    
+# <<< --- NOVO ENDPOINT ADICIONADO --- >>>
+@router.patch("/users/{user_id}/status", response_model=UserOut)
+def set_user_status(
+    user_id: int,
+    status_update: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user)
+):
+    """(Admin) Ativa ou inativa um usuário."""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
+        
+    if db_user.id == admin_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um administrador não pode inativar a própria conta.")
+    
+    db_user.is_active = status_update.is_active
     db.commit()
     db.refresh(db_user)
     

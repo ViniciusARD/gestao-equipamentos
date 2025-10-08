@@ -3,7 +3,8 @@
 import { API_URL, apiFetch } from './api.js';
 import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading, openSectorModal } from './ui.js';
 
-// ... (funções renderAdminReservationActions, renderUserActions, renderInventoryRow existentes)
+// ... (funções renderAdminReservationActions, renderInventoryRow existentes)
+
 function renderAdminReservationActions(reservation) {
     if (reservation.status === 'pending') {
         return `
@@ -17,6 +18,7 @@ function renderAdminReservationActions(reservation) {
     return '---';
 }
 
+// <<< --- FUNÇÃO ATUALIZADA --- >>>
 function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
     const roles = ['user', 'requester', 'manager', 'admin'];
@@ -55,12 +57,18 @@ function renderUserActions(user, currentUserId) {
             </button>`;
     }
 
+    // Botão de Ativar/Inativar
+    const toggleActiveButton = user.is_active
+        ? `<button class="btn btn-secondary btn-sm user-action-btn" data-user-id="${user.id}" data-action="toggle-active" data-is-active="true" title="Inativar Usuário" ${isCurrentUser ? 'disabled' : ''}><i class="bi bi-pause-circle"></i></button>`
+        : `<button class="btn btn-success btn-sm user-action-btn" data-user-id="${user.id}" data-action="toggle-active" data-is-active="false" title="Ativar Usuário"><i class="bi bi-play-circle"></i></button>`;
+
+
     const deleteButton = `
         <button class="btn btn-danger btn-sm user-action-btn" data-user-id="${user.id}" data-action="delete" title="Excluir Usuário" ${isCurrentUser ? 'disabled' : ''}>
             <i class="bi bi-trash"></i>
         </button>`;
 
-    return `<div class="d-flex gap-1">${sectorButton}${promoteButton}${demoteButton}${deleteButton}</div>`;
+    return `<div class="d-flex gap-1">${sectorButton}${promoteButton}${demoteButton}${toggleActiveButton}${deleteButton}</div>`;
 }
 
 function renderInventoryRow(type) {
@@ -161,6 +169,7 @@ export async function loadManageReservationsView(token, params = {}) {
     }
 }
 
+// <<< --- FUNÇÃO ATUALIZADA --- >>>
 export async function loadManageUsersView(token, currentUserId, searchTerm = '', roleFilter = 'all') {
     const roleFilters = [
         { key: 'all', text: 'Todos' },
@@ -210,7 +219,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
-                    <tr><th>ID</th><th>Username</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Ações</th></tr>
+                    <tr><th>ID</th><th>Username</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
                     ${users.map(user => `
@@ -220,6 +229,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
                             <td>${user.email}</td>
                             <td class="sector-cell">${user.setor ? user.setor.name : '<span class="text-muted">N/A</span>'}</td>
                             <td class="role-cell">${renderRoleBadge(user.role)}</td>
+                            <td class="status-cell">${user.is_active ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>'}</td>
                             <td class="action-cell">${renderUserActions(user, currentUserId)}</td>
                         </tr>
                     `).join('')}
@@ -486,8 +496,9 @@ export async function handleUpdateReservationStatus(button, token) {
     }
 }
 
+// <<< --- FUNÇÃO ATUALIZADA --- >>>
 export async function handleUserAction(button, token, currentUserId) {
-    const { userId, action, currentRole } = button.dataset;
+    const { userId, action, currentRole, isActive } = button.dataset;
     
     if (action === 'delete' && !confirm(`Tem certeza que deseja excluir o usuário ID ${userId}?`)) return;
 
@@ -512,37 +523,42 @@ export async function handleUserAction(button, token, currentUserId) {
     let newRole = '';
 
     if (action === 'promote') {
-        if (currentRoleIndex < roles.length - 1) {
-            newRole = roles[currentRoleIndex + 1];
-        }
+        if (currentRoleIndex < roles.length - 1) newRole = roles[currentRoleIndex + 1];
     } else if (action === 'demote') {
-        if (currentRoleIndex > 0) {
-            newRole = roles[currentRoleIndex - 1];
-        }
+        if (currentRoleIndex > 0) newRole = roles[currentRoleIndex - 1];
     }
 
     try {
+        let updated;
         if (action === 'promote' || action === 'demote') {
             if (!newRole) {
                 showToast('Ação inválida para este nível de usuário.', 'warning');
             } else {
-                const updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
-                const row = document.getElementById(`user-row-${updated.id}`);
-                if (row) {
-                    row.querySelector('.role-cell').innerHTML = renderRoleBadge(updated.role);
-                    row.querySelector('.action-cell').innerHTML = renderUserActions(updated, currentUserId);
-                }
+                updated = await apiFetch(`${API_URL}/admin/users/${userId}/role`, token, { method: 'PATCH', body: { role: newRole } });
                 showToast('Permissão alterada!', 'success');
             }
+        } else if (action === 'toggle-active') {
+            const newStatus = isActive !== 'true';
+            updated = await apiFetch(`${API_URL}/admin/users/${userId}/status`, token, { method: 'PATCH', body: { is_active: newStatus } });
+            showToast(`Usuário ${newStatus ? 'ativado' : 'inativado'}!`, 'success');
         } else if (action === 'delete') {
             await apiFetch(`${API_URL}/admin/users/${userId}`, token, { method: 'DELETE' });
             document.getElementById(`user-row-${userId}`).remove();
             showToast('Usuário excluído!', 'success');
         }
+
+        if (updated) {
+            const row = document.getElementById(`user-row-${updated.id}`);
+            if (row) {
+                row.querySelector('.role-cell').innerHTML = renderRoleBadge(updated.role);
+                row.querySelector('.status-cell').innerHTML = updated.is_active ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>';
+                row.querySelector('.action-cell').innerHTML = renderUserActions(updated, currentUserId);
+            }
+        }
     } catch (e) {
         showToast(`Erro: ${e.message}`, 'danger');
     } finally {
-        if (action !== 'delete' || document.getElementById(`user-row-${userId}`)) {
+        if (action !== 'delete') {
             setButtonLoading(button, false);
         }
     }

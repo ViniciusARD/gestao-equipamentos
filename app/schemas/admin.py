@@ -32,3 +32,7 @@ class UserRoleUpdate(BaseModel):
 # --- NOVO SCHEMA ---
 class UserSectorUpdate(BaseModel):
     setor_id: Optional[int] = None
+
+# <<< --- NOVO SCHEMA ADICIONADO --- >>>
+class UserStatusUpdate(BaseModel):
+    is_active: bool

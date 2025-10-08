@@ -7,7 +7,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models.setor import Setor
 from app.schemas.setor import SetorCreate, SetorOut, SetorUpdate
-from app.security import get_current_admin_user, get_current_user
+from app.security import get_current_admin_user
 from app.models.user import User
 
 router = APIRouter(
@@ -34,12 +34,11 @@ def create_setor(
 @router.get("/", response_model=List[SetorOut])
 def list_setores(
     db: Session = Depends(get_db),
-    # Adicionamos o parâmetro de busca (search) opcional
-    search: Optional[str] = Query(None),
-    # A autenticação é necessária para proteger a rota de busca
-    current_user: User = Depends(get_current_user)
+    search: Optional[str] = Query(None)
+    # A dependência de autenticação foi removida para permitir o acesso público
+    # na tela de cadastro.
 ):
-    """Lista todos os setores disponíveis, com filtro de busca (acesso autenticado)."""
+    """Lista todos os setores disponíveis (acesso público)."""
     query = db.query(Setor)
     if search:
         # Filtra o nome do setor se um termo de busca for fornecido
