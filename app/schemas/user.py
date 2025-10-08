@@ -62,6 +62,7 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+    new_password_confirm: str
 
  # Schema para atualização do perfil do usuário ---
 class UserUpdate(BaseModel):

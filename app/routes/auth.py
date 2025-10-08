@@ -270,6 +270,16 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
+    if request.new_password != request.new_password_confirm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="As senhas não coincidem.")
+
+    password_errors = validate_password(request.new_password)
+    if password_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"errors": password_errors}
+        )
+
     user.password_hash = get_password_hash(request.new_password)
     db.commit()
 
