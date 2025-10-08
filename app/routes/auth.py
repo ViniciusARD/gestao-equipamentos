@@ -28,6 +28,7 @@ from app.security import (
 from app.email_utils import send_reset_password_email, send_verification_email
 from app.logging_utils import create_log
 from app.config import settings
+from app.password_validator import validate_password # <-- IMPORTAR
 
 router = APIRouter(
     prefix="/auth",
@@ -43,6 +44,18 @@ async def register_user(
     """
     Registra um novo usuário, mas o deixa inativo até a verificação por e-mail.
     """
+    # <-- INÍCIO DAS NOVAS VALIDAÇÕES -->
+    if user.password != user.password_confirm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="As senhas não coincidem.")
+
+    password_errors = validate_password(user.password)
+    if password_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"errors": password_errors}
+        )
+    # <-- FIM DAS NOVAS VALIDAÇÕES -->
+
     if not user.terms_accepted:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Você deve aceitar os Termos de Uso e a Política de Privacidade para se cadastrar.")
 

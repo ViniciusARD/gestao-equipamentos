@@ -12,8 +12,9 @@ class UserBase(BaseModel):
 # Schema para a criação de um usuário (recebe a senha)
 class UserCreate(UserBase):
     password: str
+    password_confirm: str # <-- NOVO
     setor_id: Optional[int] = None
-    terms_accepted: bool # <-- NOVO
+    terms_accepted: bool
 
 # Schema para o corpo da requisição de login
 class UserLogin(BaseModel):
