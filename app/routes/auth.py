@@ -25,10 +25,10 @@ from app.security import (
     get_current_user, get_token, create_verification_token,
     verify_verification_token, verify_otp, create_refresh_token
 )
-from app.email_utils import send_reset_password_email, send_verification_email
+from app.email_utils import send_verification_email, send_reset_password_email
 from app.logging_utils import create_log
 from app.config import settings
-from app.password_validator import validate_password # <-- IMPORTAR
+from app.password_validator import validate_password
 
 router = APIRouter(
     prefix="/auth",
@@ -43,8 +43,8 @@ async def register_user(
 ):
     """
     Registra um novo usuário, mas o deixa inativo até a verificação por e-mail.
+    Se o e-mail já existir e a conta não estiver verificada, reenvia o e-mail de verificação.
     """
-    # <-- INÍCIO DAS NOVAS VALIDAÇÕES -->
     if user.password != user.password_confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="As senhas não coincidem.")
 
@@ -54,14 +54,27 @@ async def register_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"errors": password_errors}
         )
-    # <-- FIM DAS NOVAS VALIDAÇÕES -->
 
     if not user.terms_accepted:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Você deve aceitar os Termos de Uso e a Política de Privacidade para se cadastrar.")
 
     db_user_by_email = db.query(User).filter(User.email == user.email).first()
     if db_user_by_email:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já registrado")
+        if db_user_by_email.is_verified:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já registrado")
+        else:
+            # Reenvia o e-mail de verificação se o usuário não for verificado
+            verification_token = create_verification_token(email=db_user_by_email.email)
+            background_tasks.add_task(
+                send_verification_email,
+                email_to=db_user_by_email.email,
+                username=db_user_by_email.username,
+                token=verification_token
+            )
+            # Retorna o usuário existente, mas com um status 200 em vez de 201
+            # para indicar que nenhuma nova entidade foi criada.
+            # O frontend tratará isso como um sucesso de qualquer maneira.
+            return db_user_by_email
 
     db_user_by_username = db.query(User).filter(User.username == user.username).first()
     if db_user_by_username:
@@ -122,7 +135,7 @@ def verify_user_email(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(get_db)):
+async def login_for_access_token(user_credentials: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
 
     if not user or not verify_password(user_credentials.password, user.password_hash):
@@ -133,10 +146,21 @@ def login_for_access_token(user_credentials: UserLogin, db: Session = Depends(ge
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active or not user.is_verified:
-        raise HTTPException(status_code=403, detail="Sua conta está inativa ou não foi verificada.")
+    if not user.is_verified:
+        # Se o usuário não for verificado, reenviar o e-mail de verificação
+        verification_token = create_verification_token(email=user.email)
+        background_tasks.add_task(
+            send_verification_email,
+            email_to=user.email,
+            username=user.username,
+            token=verification_token
+        )
+        raise HTTPException(status_code=403, detail="Sua conta ainda não foi verificada. Um novo link de verificação foi enviado para o seu e-mail.")
 
-    # <<-- NOVA VERIFICAÇÃO ADICIONADA AQUI -->>
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Sua conta está inativa.")
+
+
     if not user.terms_accepted:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você precisa aceitar os Termos de Uso para fazer login.")
 
