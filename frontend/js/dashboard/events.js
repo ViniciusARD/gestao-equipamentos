@@ -11,7 +11,8 @@ import {
     loadManageSectorsView,
     handleUpdateReservationStatus,
     handleUserAction,
-    handleEquipmentTypeSubmit
+    handleEquipmentTypeSubmit,
+    loadAnalyticsDashboardView
 } from './admin.js';
 
 let appState = {};
@@ -39,7 +40,8 @@ async function handleGlobalClick(event) {
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
         'nav-manage-inventory': () => loadManageInventoryView(token),
         'nav-manage-setores': () => loadManageSectorsView(token),
-        'nav-system-logs': () => loadSystemLogsView(token, {})
+        'nav-system-logs': () => loadSystemLogsView(token, {}),
+        'nav-analytics-dashboard': () => loadAnalyticsDashboardView(token, {})
     };
     if (navActions[target.id]) {
         event.preventDefault();
@@ -66,6 +68,7 @@ async function handleGlobalClick(event) {
     if (target.matches('#searchUsersBtn')) applyUsersFilter();
     if (target.matches('#searchInventoryBtn')) applyInventoryFilter();
     if (target.matches('#applyLogsFilterBtn')) applyLogsFilter();
+    if (target.matches('#applyAnalyticsFilterBtn')) applyAnalyticsFilter();
 
     if (target.matches('#add-sector-btn')) openSectorModal();
     if (target.matches('.sector-action-btn')) handleSectorAction(target, token);
@@ -193,6 +196,15 @@ function applyLogsFilter() {
         end_date: document.getElementById('logsEndDate').value,
     };
     loadSystemLogsView(token, params);
+}
+
+function applyAnalyticsFilter() {
+    const token = appState.token;
+    const params = {
+        start_date: document.getElementById('analyticsStartDate').value,
+        end_date: document.getElementById('analyticsEndDate').value,
+    };
+    loadAnalyticsDashboardView(token, params);
 }
 
 // <-- NOVA FUNÇÃO PARA APLICAR FILTRO DE SETORES -->

@@ -2,6 +2,7 @@
 
 import { API_URL, apiFetch } from './api.js';
 import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading, openSectorModal } from './ui.js';
+import { loadAnalyticsDashboardView } from './analytics.js';
 
 // ... (funções renderAdminReservationActions, renderInventoryRow existentes)
 
@@ -594,3 +595,5 @@ export async function handleEquipmentTypeSubmit(token) {
         setButtonLoading(submitButton, false);
     }
 }
+
+export { loadAnalyticsDashboardView };
