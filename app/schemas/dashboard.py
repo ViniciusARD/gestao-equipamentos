@@ -11,3 +11,4 @@ class DashboardStats(BaseModel):
     top_equipments: List[StatsItem]
     top_sectors: List[StatsItem]
     top_users: List[StatsItem]
+    reservation_status_counts: List[StatsItem]

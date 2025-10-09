@@ -7,7 +7,8 @@ import { renderView } from './ui.js';
 let charts = {
     equipmentsChart: null,
     sectorsChart: null,
-    usersChart: null
+    usersChart: null,
+    reservationStatusChart: null // <-- NOVO GRÁFICO
 };
 
 // Função principal para carregar a view do painel
@@ -15,6 +16,7 @@ export async function loadAnalyticsDashboardView(token, params = {}) {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Painel de Análise</h1>
+            <small class="text-muted">Estatísticas de TOP 5 baseadas em reservas APROVADAS.</small>
         </div>
         <div class="card mb-4">
             <div class="card-body">
@@ -43,11 +45,17 @@ export async function loadAnalyticsDashboardView(token, params = {}) {
             </div>
             <div class="col-xl-6 mb-4">
                 <div class="card h-100">
+                    <div class="card-header">Status Gerais das Reservas</div>
+                    <div class="card-body"><canvas id="reservationStatusChart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-xl-6 mb-4">
+                <div class="card h-100">
                     <div class="card-header">Top 5 Setores Que Mais Reservam</div>
                     <div class="card-body"><canvas id="sectorsChart"></canvas></div>
                 </div>
             </div>
-            <div class="col-xl-12 mb-4">
+            <div class="col-xl-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">Top 5 Usuários Que Mais Reservam</div>
                     <div class="card-body"><canvas id="usersChart"></canvas></div>
@@ -77,6 +85,9 @@ async function fetchAndRenderCharts(token, params = {}) {
         renderChart('equipmentsChart', 'bar', 'Nº de Reservas', data.top_equipments);
         renderChart('sectorsChart', 'pie', 'Nº de Reservas', data.top_sectors);
         renderChart('usersChart', 'bar', 'Nº de Reservas', data.top_users, { indexAxis: 'y' });
+        // <-- NOVO GRÁFICO SENDO RENDERIZADO -->
+        renderChart('reservationStatusChart', 'doughnut', 'Total', data.reservation_status_counts);
+
 
     } catch (e) {
         chartsContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">${e.message}</div></div>`;
@@ -93,6 +104,28 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
     if (charts[canvasId]) {
         charts[canvasId].destroy();
     }
+    
+    // <<< --- MODIFICAÇÃO PARA EIXOS INTEIROS --- >>>
+    const scalesOptions = {};
+    if (type === 'bar') {
+        // Se for um gráfico de barras com eixo y (padrão)
+        if (extraOptions.indexAxis !== 'y') {
+            scalesOptions.y = {
+                ticks: {
+                    stepSize: 1, // Garante que o eixo Y só mostre inteiros
+                    beginAtZero: true
+                }
+            };
+        } else { // Se for um gráfico de barras com eixo x (barras horizontais)
+             scalesOptions.x = {
+                ticks: {
+                    stepSize: 1, // Garante que o eixo X só mostre inteiros
+                    beginAtZero: true
+                }
+            };
+        }
+    }
+
 
     charts[canvasId] = new Chart(ctx, {
         type: type,
@@ -102,11 +135,12 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
                 label: label,
                 data: values,
                 backgroundColor: [
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(153, 102, 255, 0.6)',
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)'
                 ],
                 borderColor: [
                     'rgba(54, 162, 235, 1)',
@@ -114,6 +148,7 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
                     'rgba(75, 192, 192, 1)',
                     'rgba(255, 206, 86, 1)',
                     'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)'
                 ],
                 borderWidth: 1
             }]
@@ -121,6 +156,7 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            scales: scalesOptions, // Aplica as opções de escala
             ...extraOptions
         }
     });
