@@ -4,18 +4,18 @@ import { API_URL, apiFetch } from './api.js';
 
 export function renderStatusBadge(status) {
     const statusMap = {
-        'pending': 'warning',
-        'approved': 'success',
-        'rejected': 'danger',
-        'returned': 'secondary',
-        'available': 'success',
-        'maintenance': 'warning',
-        'reserved': 'info'
+        'pending': { bg: 'warning', text: 'Pendente' },    // Status de Reserva e agora de Unidade
+        'approved': { bg: 'success', text: 'Aprovada' },   // Status de Reserva
+        'rejected': { bg: 'danger', text: 'Rejeitada' },   // Status de Reserva
+        'returned': { bg: 'secondary', text: 'Devolvida' }, // Status de Reserva
+        'available': { bg: 'success', text: 'Disponível' }, // Status de Unidade
+        'maintenance': { bg: 'warning', text: 'Manutenção' },// Status de Unidade
+        'reserved': { bg: 'info', text: 'Reservado' }      // Status de Unidade
     };
-    const statusText = status.charAt(0).toUpperCase() + status.slice(1);
-    const badgeClass = statusMap[status.toLowerCase()] || 'light';
-    return `<span class="badge bg-${badgeClass}">${statusText}</span>`;
+    const statusInfo = statusMap[status.toLowerCase()] || { bg: 'light', text: status };
+    return `<span class="badge bg-${statusInfo.bg}">${statusInfo.text}</span>`;
 }
+
 
 export function renderRoleBadge(role) {
     const map = {

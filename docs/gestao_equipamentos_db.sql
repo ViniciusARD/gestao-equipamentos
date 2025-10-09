@@ -35,7 +35,7 @@ CREATE TABLE equipment_units (
     id SERIAL PRIMARY KEY,
     type_id INTEGER NOT NULL,
     identifier_code VARCHAR(50) UNIQUE,
-    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'maintenance')),
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'pending', 'reserved', 'maintenance')),
     CONSTRAINT fk_equipment_type FOREIGN KEY(type_id) REFERENCES equipment_types(id) ON DELETE CASCADE
 );
 

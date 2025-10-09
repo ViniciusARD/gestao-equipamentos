@@ -52,6 +52,9 @@ def create_reservation(
         status='pending'
     )
     
+    # Define o status da unidade como pendente para evitar outras reservas
+    unit.status = 'pending'
+    
     db.add(new_reservation)
     db.commit()
     db.refresh(new_reservation)
