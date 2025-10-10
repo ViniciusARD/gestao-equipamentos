@@ -33,7 +33,7 @@ def create_equipment_type(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Cria um novo tipo de equipamento."""
+    """(Gerente) Cria um novo tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.name == equipment_type.name).first()
     if db_type:
         raise HTTPException(status_code=400, detail="Este tipo de equipamento já existe.")
@@ -43,7 +43,7 @@ def create_equipment_type(
     db.commit()
     db.refresh(new_type)
 
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
 
     return new_type
 
@@ -118,7 +118,7 @@ def update_equipment_type(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Atualiza os detalhes de um tipo de equipamento."""
+    """(Gerente) Atualiza os detalhes de um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -130,7 +130,7 @@ def update_equipment_type(
     db.commit()
     db.refresh(db_type)
     
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
     
     return db_type
 
@@ -140,7 +140,7 @@ def delete_equipment_type(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Deleta um tipo de equipamento e todas as suas unidades."""
+    """(Gerente) Deleta um tipo de equipamento e todas as suas unidades."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -149,7 +149,7 @@ def delete_equipment_type(
     db.delete(db_type)
     db.commit()
     
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
     
     return
 
@@ -161,7 +161,7 @@ def create_equipment_unit(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Cria uma nova unidade física para um tipo de equipamento."""
+    """(Gerente) Cria uma nova unidade física para um tipo de equipamento."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == unit.type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
@@ -181,7 +181,7 @@ def create_equipment_unit(
     db.add(history_event)
     db.commit()
     
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' para o tipo '{db_type.name}'.")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' criou a unidade '{new_unit.identifier_code or new_unit.id}' para o tipo '{db_type.name}'.")
     
     return new_unit
 
@@ -197,7 +197,7 @@ def get_unit_history(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Retorna o histórico de eventos de uma unidade específica."""
+    """(Gerente) Retorna o histórico de eventos de uma unidade específica."""
     unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -219,7 +219,7 @@ def update_equipment_unit(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Atualiza os detalhes de uma unidade de equipamento."""
+    """(Gerente) Atualiza os detalhes de uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -231,7 +231,7 @@ def update_equipment_unit(
     db.commit()
     db.refresh(db_unit)
     
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' atualizou a unidade ID {db_unit.id}.")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' atualizou a unidade ID {db_unit.id}.")
     
     return db_unit
 
@@ -241,7 +241,7 @@ def delete_equipment_unit(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Deleta uma unidade de equipamento."""
+    """(Gerente) Deleta uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
@@ -261,7 +261,7 @@ def delete_equipment_unit(
     db.delete(db_unit)
     db.commit()
     
-    create_log(db, manager_user.id, "INFO", f"Manager '{manager_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
     
     return
 

@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from .setor import SetorOut
+from .sector import SectorOut
 
 # Schema base com os campos comuns
 class UserBase(BaseModel):
@@ -12,8 +12,8 @@ class UserBase(BaseModel):
 # Schema para a criação de um usuário (recebe a senha)
 class UserCreate(UserBase):
     password: str
-    password_confirm: str # <-- NOVO
-    setor_id: Optional[int] = None
+    password_confirm: str
+    sector_id: Optional[int] = None
     terms_accepted: bool
 
 # Schema para o corpo da requisição de login
@@ -28,7 +28,7 @@ class UserOut(UserBase):
     is_active: bool
     is_verified: bool
     otp_enabled: bool
-    setor: Optional[SetorOut] = None
+    sector: Optional[SectorOut] = None
 
     class Config:
         from_attributes = True
@@ -67,7 +67,7 @@ class ResetPasswordRequest(BaseModel):
  # Schema para atualização do perfil do usuário ---
 class UserUpdate(BaseModel):
     username: Optional[str] = None
-    setor_id: Optional[int] = None
+    sector_id: Optional[int] = None
 
 # Schemas para 2FA
 class TwoFactorSetupResponse(BaseModel):

@@ -1,7 +1,6 @@
 # app/routes/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request, Response
-from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from jose import jwt, JWTError
@@ -11,7 +10,7 @@ from io import BytesIO
 
 from app.database import get_db
 from app.models.user import User
-from app.models.setor import Setor
+from app.models.sector import Sector  # CORREÇÃO AQUI
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import (
     UserCreate, UserOut, Token, UserLogin, ForgotPasswordRequest,
@@ -71,18 +70,15 @@ async def register_user(
                 username=db_user_by_email.username,
                 token=verification_token
             )
-            # Retorna o usuário existente, mas com um status 200 em vez de 201
-            # para indicar que nenhuma nova entidade foi criada.
-            # O frontend tratará isso como um sucesso de qualquer maneira.
             return db_user_by_email
 
     db_user_by_username = db.query(User).filter(User.username == user.username).first()
     if db_user_by_username:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome de usuário já existe")
 
-    if user.setor_id:
-        setor = db.query(Setor).filter(Setor.id == user.setor_id).first()
-        if not setor:
+    if user.sector_id:
+        sector = db.query(Sector).filter(Sector.id == user.sector_id).first() # CORREÇÃO AQUI
+        if not sector:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setor não encontrado.")
 
     hashed_password = get_password_hash(user.password)
@@ -90,7 +86,7 @@ async def register_user(
         username=user.username,
         email=user.email,
         password_hash=hashed_password,
-        setor_id=user.setor_id,
+        sector_id=user.sector_id,
         is_active=False,
         is_verified=False,
         terms_accepted=True,
@@ -147,7 +143,6 @@ async def login_for_access_token(user_credentials: UserLogin, background_tasks: 
         )
 
     if not user.is_verified:
-        # Se o usuário não for verificado, reenviar o e-mail de verificação
         verification_token = create_verification_token(email=user.email)
         background_tasks.add_task(
             send_verification_email,

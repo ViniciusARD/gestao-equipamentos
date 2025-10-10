@@ -11,7 +11,7 @@ from app.models.reservation import Reservation
 from app.models.equipment_type import EquipmentType
 from app.models.equipment_unit import EquipmentUnit
 from app.models.user import User
-from app.models.setor import Setor
+from app.models.sector import Sector # CORREÇÃO AQUI
 from app.schemas.dashboard import DashboardStats, StatsItem
 from app.security import get_current_admin_user
 
@@ -30,18 +30,16 @@ def get_dashboard_stats(
     """
     (Admin) Retorna estatísticas agregadas para o painel de análise.
     """
-    # Query base para reservas, com filtros de data se fornecidos
     query = db.query(Reservation)
     if start_date:
         query = query.filter(Reservation.created_at >= start_date)
     if end_date:
         query = query.filter(Reservation.created_at <= end_date)
 
-    # <<-- MODIFICAÇÃO: Apenas reservas aprovadas para os TOP 5 -->>
     approved_query = query.filter(Reservation.status == 'approved')
 
 
-    # 1. Equipamentos mais reservados (APENAS APROVADOS)
+    # 1. Equipamentos mais reservados
     top_equipments_query = (
         approved_query
         .join(Reservation.equipment_unit)
@@ -54,20 +52,20 @@ def get_dashboard_stats(
     )
     top_equipments = [StatsItem(name=name, count=count) for name, count in top_equipments_query]
 
-    # 2. Setores que mais reservam (APENAS APROVADOS)
+    # 2. Setores que mais reservam
     top_sectors_query = (
         approved_query
         .join(Reservation.user)
-        .join(User.setor)
-        .group_by(Setor.name)
-        .with_entities(Setor.name, func.count(Reservation.id).label('count'))
+        .join(User.sector)
+        .group_by(Sector.name) # CORREÇÃO AQUI
+        .with_entities(Sector.name, func.count(Reservation.id).label('count')) # CORREÇÃO AQUI
         .order_by(desc('count'))
         .limit(5)
         .all()
     )
     top_sectors = [StatsItem(name=name, count=count) for name, count in top_sectors_query]
 
-    # 3. Usuários que mais reservam (APENAS APROVADOS)
+    # 3. Usuários que mais reservam
     top_users_query = (
         approved_query
         .join(Reservation.user)
@@ -79,7 +77,7 @@ def get_dashboard_stats(
     )
     top_users = [StatsItem(name=name, count=count) for name, count in top_users_query]
 
-    # <<-- NOVA QUERY: Contagem de status de reserva -->>
+    # Contagem de status de reserva
     status_counts_query = (
         query
         .group_by(Reservation.status)
@@ -89,7 +87,6 @@ def get_dashboard_stats(
         )
         .all()
     )
-    # Traduzir os status para melhor visualização
     status_translation = {
         'approved': 'Aprovadas',
         'pending': 'Pendentes',

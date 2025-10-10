@@ -39,7 +39,7 @@ async function handleGlobalClick(event) {
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
         'nav-manage-inventory': () => loadManageInventoryView(token),
-        'nav-manage-setores': () => loadManageSectorsView(token),
+        'nav-manage-sectors': () => loadManageSectorsView(token),
         'nav-system-logs': () => loadSystemLogsView(token, {}),
         'nav-analytics-dashboard': () => loadAnalyticsDashboardView(token, {})
     };
@@ -72,7 +72,7 @@ async function handleGlobalClick(event) {
 
     if (target.matches('#add-sector-btn')) openSectorModal();
     if (target.matches('.sector-action-btn')) handleSectorAction(target, token);
-    if (target.matches('#searchSectorsBtn')) applySectorsFilter(); // <-- NOVO EVENTO DE CLIQUE
+    if (target.matches('#searchSectorsBtn')) applySectorsFilter();
 
 
     if (target.matches('.status-filter-btn')) {
@@ -133,10 +133,8 @@ function handleGlobalKeyUp(event) {
     if (target.matches('#myReservationsSearchInput')) applyMyReservationsFilter();
     if (target.matches('#inventorySearchInput')) applyInventoryFilter();
     if (target.matches('#logsSearchInput')) applyLogsFilter();
-    if (target.matches('#sectorsSearchInput')) applySectorsFilter(); // <-- NOVO EVENTO DE TECLA
+    if (target.matches('#sectorsSearchInput')) applySectorsFilter();
 }
-
-// ... (todas as funções apply...Filter existentes)
 
 function applyAdminReservationsFilter() {
     const token = appState.token;
@@ -207,14 +205,12 @@ function applyAnalyticsFilter() {
     loadAnalyticsDashboardView(token, params);
 }
 
-// <-- NOVA FUNÇÃO PARA APLICAR FILTRO DE SETORES -->
 function applySectorsFilter() {
     const token = appState.token;
     const searchTerm = document.getElementById('sectorsSearchInput').value.trim();
     loadManageSectorsView(token, searchTerm);
 }
 
-// ... (demais funções handle... existentes)
 async function handleReservationSubmit(token) {
     const form = document.getElementById('reservationForm');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -224,11 +220,11 @@ async function handleReservationSubmit(token) {
     const end_time = new Date(form.endTime.value);
 
     if (isNaN(start_time) || isNaN(end_time) || start_time >= end_time) {
-        messageDiv.innerHTML = '<div class="alert alert-danger">Datas inválidas.</div>';
+        messageDiv.innerHTML = '<div class="alert alert-danger">Invalid dates.</div>';
         return;
     }
 
-    setButtonLoading(submitButton, true, 'Enviando...');
+    setButtonLoading(submitButton, true, 'Sending...');
     messageDiv.innerHTML = '';
     try {
         await apiFetch(`${API_URL}/reservations/`, token, {
@@ -239,7 +235,7 @@ async function handleReservationSubmit(token) {
                 end_time: end_time.toISOString()
             }
         });
-        showToast('Reserva solicitada!', 'success');
+        showToast('Reservation requested!', 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         form.reset();
         applyMyReservationsFilter();
@@ -254,7 +250,7 @@ async function handleUpdateProfile(token) {
     const form = document.getElementById('updateProfileForm');
     const submitButton = form.querySelector('button[type="submit"]');
     const newUsername = document.getElementById('profileUsername').value;
-    const newSetorId = document.getElementById('profileSetor').value;
+    const newSectorId = document.getElementById('profileSector').value;
 
     const payload = {};
     let changed = false;
@@ -264,18 +260,18 @@ async function handleUpdateProfile(token) {
         changed = true;
     }
     
-    const currentSetorId = appState.currentUser.setor ? appState.currentUser.setor.id.toString() : "";
-    if (newSetorId !== currentSetorId) {
-        payload.setor_id = newSetorId ? parseInt(newSetorId) : null;
+    const currentSectorId = appState.currentUser.sector ? appState.currentUser.sector.id.toString() : "";
+    if (newSectorId !== currentSectorId) {
+        payload.sector_id = newSectorId ? parseInt(newSectorId) : null;
         changed = true;
     }
 
     if (!changed) {
-        showToast('Nenhuma alteração para salvar.', 'info');
+        showToast('No changes to save.', 'info');
         return;
     }
 
-    setButtonLoading(submitButton, true, 'Salvando...');
+    setButtonLoading(submitButton, true, 'Saving...');
     try {
         const updatedUser = await apiFetch(`${API_URL}/users/me`, token, {
             method: 'PUT',
@@ -283,13 +279,13 @@ async function handleUpdateProfile(token) {
         });
 
         appState.currentUser = updatedUser;
-        document.getElementById('user-greeting').textContent = `Olá, ${updatedUser.username}!`;
-        showToast('Perfil atualizado com sucesso!', 'success');
+        document.getElementById('user-greeting').textContent = `Hello, ${updatedUser.username}!`;
+        showToast('Profile updated successfully!', 'success');
 
     } catch (e) {
-        showToast(`Erro: ${e.message}`, 'danger');
+        showToast(`Error: ${e.message}`, 'danger');
         document.getElementById('profileUsername').value = appState.currentUser.username;
-        document.getElementById('profileSetor').value = currentSetorId;
+        document.getElementById('profileSector').value = currentSectorId;
     } finally {
         setButtonLoading(submitButton, false);
     }
@@ -299,24 +295,24 @@ async function handleAdminUpdateSector(token) {
     const form = document.getElementById('userSectorForm');
     const submitButton = form.querySelector('button[type="submit"]');
     const userId = form.dataset.userId;
-    const setor_id = document.getElementById('userSectorSelect').value;
+    const sector_id = document.getElementById('userSectorSelect').value;
 
-    setButtonLoading(submitButton, true, 'Salvando...');
+    setButtonLoading(submitButton, true, 'Saving...');
     try {
         const updatedUser = await apiFetch(`${API_URL}/admin/users/${userId}/sector`, token, {
             method: 'PATCH',
-            body: { setor_id: setor_id ? parseInt(setor_id) : null }
+            body: { sector_id: sector_id ? parseInt(sector_id) : null }
         });
 
         const row = document.getElementById(`user-row-${userId}`);
         if (row) {
-            row.querySelector('.sector-cell').innerHTML = updatedUser.setor ? updatedUser.setor.name : '<span class="text-muted">N/A</span>';
+            row.querySelector('.sector-cell').innerHTML = updatedUser.sector ? updatedUser.sector.name : '<span class="text-muted">N/A</span>';
         }
         
-        showToast('Setor do usuário atualizado!', 'success');
+        showToast("User's sector updated!", 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
     } catch (e) {
-        showToast(`Erro: ${e.message}`, 'danger');
+        showToast(`Error: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(submitButton, false);
     }
@@ -327,28 +323,28 @@ async function handleGoogleConnect(button, token) {
     try {
         const response = await apiFetch(`${API_URL}/google/login`, token);
         window.open(response.authorization_url, '_blank');
-        showToast('Abra a nova aba para autorizar o acesso à sua conta Google.', 'info');
+        showToast('Open the new tab to authorize access to your Google account.', 'info');
     } catch (e) {
-        showToast(`Erro ao iniciar conexão: ${e.message}`, 'danger');
+        showToast(`Error starting connection: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(button, false);
     }
 }
 
 async function handleDeleteAccount(button, token) {
-    const confirmation = prompt('Esta ação é irreversível. Para confirmar, digite "excluir minha conta":');
-    if (confirmation !== 'excluir minha conta') {
-        showToast('Ação cancelada.', 'info');
+    const confirmation = prompt('This action is irreversible. To confirm, type "delete my account":');
+    if (confirmation !== 'delete my account') {
+        showToast('Action canceled.', 'info');
         return;
     }
 
     setButtonLoading(button, true);
     try {
         await apiFetch(`${API_URL}/users/me`, token, { method: 'DELETE' });
-        showToast('Sua conta foi excluída. Você será desconectado.', 'success');
+        showToast('Your account has been deleted. You will be logged out.', 'success');
         setTimeout(() => appState.logout(), 3000);
     } catch (e) {
-        showToast(`Erro ao excluir conta: ${e.message}`, 'danger');
+        showToast(`Error deleting account: ${e.message}`, 'danger');
         setButtonLoading(button, false);
     }
 }
@@ -366,14 +362,14 @@ async function handleInventoryAction(button, token) {
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         populateUnitsTable(type.units);
     } else if (action === 'delete-type') {
-        if (!confirm('Deseja excluir este tipo? Todas as unidades associadas também serão removidas.')) return;
+        if (!confirm('Do you want to delete this type? All associated units will also be removed.')) return;
         setButtonLoading(button, true);
         try {
             await apiFetch(`${API_URL}/equipments/types/${typeId}`, token, { method: 'DELETE' });
             document.getElementById(`inventory-row-${typeId}`).remove();
-            showToast('Tipo de equipamento excluído!', 'success');
+            showToast('Equipment type deleted!', 'success');
         } catch (e) {
-            showToast(`Erro: ${e.message}`, 'danger');
+            showToast(`Error: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
     }
@@ -382,7 +378,7 @@ async function handleInventoryAction(button, token) {
 function populateUnitsTable(units) {
     const tableBody = document.getElementById('unitsTableBody');
     if (units.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhuma unidade cadastrada.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No units registered.</td></tr>';
         return;
     }
     tableBody.innerHTML = units.map(unit => `
@@ -391,9 +387,9 @@ function populateUnitsTable(units) {
             <td>${unit.identifier_code || 'N/A'}</td>
             <td>${renderStatusBadge(unit.status)}</td>
             <td>
-                <button class="btn btn-info btn-sm text-white me-1 unit-action-btn" data-action="history" data-unit-id="${unit.id}" title="Ver Histórico"><i class="bi bi-clock-history"></i></button>
-                <button class="btn btn-secondary btn-sm me-1 unit-action-btn" data-action="edit" data-unit-id="${unit.id}" title="Editar Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-danger btn-sm unit-action-btn" data-action="delete" data-unit-id="${unit.id}" title="Excluir Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
+                <button class="btn btn-info btn-sm text-white me-1 unit-action-btn" data-action="history" data-unit-id="${unit.id}" title="View History"><i class="bi bi-clock-history"></i></button>
+                <button class="btn btn-secondary btn-sm me-1 unit-action-btn" data-action="edit" data-unit-id="${unit.id}" title="Edit Unit" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-danger btn-sm unit-action-btn" data-action="delete" data-unit-id="${unit.id}" title="Delete Unit" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -410,14 +406,14 @@ async function handleUnitFormSubmit(token) {
         identifier_code: form.unitIdentifier.value || null,
         status: form.unitStatus.value
     };
-    setButtonLoading(submitButton, true, 'Salvando...');
+    setButtonLoading(submitButton, true, 'Saving...');
     messageDiv.innerHTML = '';
     try {
         const method = unitId ? 'PUT' : 'POST';
         const url = unitId ? `${API_URL}/equipments/units/${unitId}` : `${API_URL}/equipments/units`;
         const bodyData = unitId ? { identifier_code: unitData.identifier_code, status: unitData.status } : unitData;
         await apiFetch(url, token, { method, body: bodyData });
-        showToast(`Unidade ${unitId ? 'atualizada' : 'criada'}!`, 'success');
+        showToast(`Unit ${unitId ? 'updated' : 'created'}!`, 'success');
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         populateUnitsTable(type.units);
         resetUnitForm();
@@ -438,14 +434,14 @@ async function handleUnitAction(button, token) {
         };
         prepareUnitFormForEdit(unitToEdit);
     } else if (action === 'delete') {
-        if (!confirm('Tem certeza que deseja excluir esta unidade?')) return;
+        if (!confirm('Are you sure you want to delete this unit?')) return;
         setButtonLoading(button, true);
         try {
             await apiFetch(`${API_URL}/equipments/units/${unitId}`, token, { method: 'DELETE' });
             document.getElementById(`unit-row-${unitId}`).remove();
-            showToast('Unidade excluída!', 'success');
+            showToast('Unit deleted!', 'success');
         } catch (e) {
-            showToast(`Erro: ${e.message}`, 'danger');
+            showToast(`Error: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
     } else if (action === 'history') {
@@ -454,7 +450,7 @@ async function handleUnitAction(button, token) {
 }
 
 function prepareUnitFormForEdit(unit) {
-    document.getElementById('unitFormTitle').textContent = `Editar Unidade ID: ${unit.id}`;
+    document.getElementById('unitFormTitle').textContent = `Edit Unit ID: ${unit.id}`;
     document.getElementById('unitFormUnitId').value = unit.id;
     document.getElementById('unitIdentifier').value = unit.identifier_code !== 'N/A' ? unit.identifier_code : '';
     document.getElementById('unitStatus').value = unit.status;
@@ -474,7 +470,7 @@ async function handleEnable2FA(token) {
         otpSecretInput.value = setupData.otp_secret;
         
         const qrCodeUrl = `${API_URL}/2fa/qr-code?provisioning_uri=${encodeURIComponent(setupData.provisioning_uri)}`;
-        qrContainer.innerHTML = `<img src="${qrCodeUrl}" alt="QR Code para 2FA" class="img-fluid qr-code-image">`;
+        qrContainer.innerHTML = `<img src="${qrCodeUrl}" alt="QR Code for 2FA" class="img-fluid qr-code-image">`;
 
     } catch (e) {
         qrContainer.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
@@ -489,7 +485,7 @@ async function handleEnable2FASubmit(token) {
     const otp_secret = document.getElementById('otpSecret').value;
     const otp_code = document.getElementById('otpEnableCode').value;
 
-    setButtonLoading(submitButton, true, 'Ativando...');
+    setButtonLoading(submitButton, true, 'Activating...');
     messageDiv.innerHTML = '';
     
     try {
@@ -497,7 +493,7 @@ async function handleEnable2FASubmit(token) {
             method: 'POST',
             body: { otp_secret, otp_code }
         });
-        showToast('2FA ativado com sucesso!', 'success');
+        showToast('2FA enabled successfully!', 'success');
         appState.currentUser.otp_enabled = true;
         loadMyAccountView(appState.currentUser, token);
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
@@ -509,10 +505,10 @@ async function handleEnable2FASubmit(token) {
 }
 
 async function handleDisable2FA(token) {
-    const password = prompt("Para desativar o 2FA, por favor, insira sua senha:");
+    const password = prompt("To disable 2FA, please enter your password:");
     if (!password) return;
 
-    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticador:");
+    const otp_code = prompt("Now, enter a code from your authenticator app:");
     if (!otp_code) return;
     
     const button = document.getElementById('disable2faBtn');
@@ -523,11 +519,11 @@ async function handleDisable2FA(token) {
             method: 'POST',
             body: { password, otp_code }
         });
-        showToast('2FA desativado com sucesso!', 'success');
+        showToast('2FA disabled successfully!', 'success');
         appState.currentUser.otp_enabled = false;
         loadMyAccountView(appState.currentUser, token);
     } catch (e) {
-        showToast(`Erro ao desativar 2FA: ${e.message}`, 'danger');
+        showToast(`Error disabling 2FA: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(button, false);
     }
@@ -545,7 +541,7 @@ async function handleReturnSubmit(token) {
         return_notes: document.getElementById('returnNotes').value.trim()
     };
 
-    setButtonLoading(submitButton, true, 'Confirmando...');
+    setButtonLoading(submitButton, true, 'Confirming...');
     messageDiv.innerHTML = '';
 
     try {
@@ -560,7 +556,7 @@ async function handleReturnSubmit(token) {
             row.querySelector('.action-cell').innerHTML = '---';
         }
         
-        showToast('Devolução registrada com sucesso!', 'success');
+        showToast('Return registered successfully!', 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
 
     } catch(e) {
@@ -576,15 +572,15 @@ async function handleSectorAction(button, token) {
     if (action === 'edit') {
         openSectorModal({ id: sectorId, name: sectorName });
     } else if (action === 'delete') {
-        if (!confirm(`Tem certeza que deseja excluir o setor "${sectorName}"? Esta ação não pode ser desfeita.`)) return;
+        if (!confirm(`Are you sure you want to delete the sector "${sectorName}"? This action cannot be undone.`)) return;
         
         setButtonLoading(button, true);
         try {
-            await apiFetch(`${API_URL}/setores/${sectorId}`, token, { method: 'DELETE' });
+            await apiFetch(`${API_URL}/sectors/${sectorId}`, token, { method: 'DELETE' });
             document.getElementById(`sector-row-${sectorId}`).remove();
-            showToast('Setor excluído com sucesso!', 'success');
+            showToast('Sector deleted successfully!', 'success');
         } catch (e) {
-            showToast(`Erro: ${e.message}`, 'danger');
+            showToast(`Error: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
     }
@@ -597,17 +593,17 @@ async function handleSectorFormSubmit(token) {
     const sectorId = form.sectorId.value;
     const sectorName = form.sectorName.value;
 
-    setButtonLoading(submitButton, true, 'Salvando...');
+    setButtonLoading(submitButton, true, 'Saving...');
     messageDiv.innerHTML = '';
     
     try {
         const method = sectorId ? 'PUT' : 'POST';
-        const url = sectorId ? `${API_URL}/setores/${sectorId}` : `${API_URL}/setores`;
+        const url = sectorId ? `${API_URL}/sectors/${sectorId}` : `${API_URL}/sectors`;
         await apiFetch(url, token, {
             method,
             body: { name: sectorName }
         });
-        showToast(`Setor ${sectorId ? 'atualizado' : 'criado'} com sucesso!`, 'success');
+        showToast(`Sector ${sectorId ? 'updated' : 'created'} successfully!`, 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         loadManageSectorsView(token);
     } catch (e) {

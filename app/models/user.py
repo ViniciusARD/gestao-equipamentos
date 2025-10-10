@@ -13,7 +13,7 @@ class User(Base):
     password_hash = Column(String(256), nullable=False)
     role = Column(String(20), nullable=False, default='user')
     
-    setor_id = Column(Integer, ForeignKey('setores.id'), nullable=True)
+    sector_id = Column(Integer, ForeignKey('sectors.id'), nullable=True)
 
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
@@ -24,5 +24,5 @@ class User(Base):
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
 
     # --- RELACIONAMENTOS ---
-    setor = relationship("Setor", back_populates="users")
+    sector = relationship("Sector", back_populates="users")
     reservations = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")

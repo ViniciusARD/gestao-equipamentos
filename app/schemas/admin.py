@@ -13,7 +13,6 @@ class ReservationStatusEnum(str, Enum):
 
 class ReservationStatusUpdate(BaseModel):
     status: ReservationStatusEnum
-    # <<-- NOVOS CAMPOS -->>
     return_status: Optional[str] = None # 'ok' or 'maintenance'
     return_notes: Optional[str] = None
 
@@ -29,10 +28,8 @@ class UserRoleEnum(str, Enum):
 class UserRoleUpdate(BaseModel):
     role: UserRoleEnum
 
-# --- NOVO SCHEMA ---
 class UserSectorUpdate(BaseModel):
-    setor_id: Optional[int] = None
+    sector_id: Optional[int] = None
 
-# <<< --- NOVO SCHEMA ADICIONADO --- >>>
 class UserStatusUpdate(BaseModel):
     is_active: bool

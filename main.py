@@ -3,12 +3,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import auth, equipments, reservations, admin, users, google_auth, two_factor_auth, setores, legal, dashboard # <-- IMPORTAR dashboard
+from app.routes import auth, equipments, reservations, admin, users, google_auth, two_factor_auth, sectors, legal, dashboard
 
 app = FastAPI(
     title="EquipControl: Sistema de Gestão de Equipamentos",
     description="API para gerenciar reservas de equipamentos.",
-    version="1.5.0" # <-- Versão atualizada
+    version="1.5.0"
 )
 
 origins = [
@@ -26,7 +26,7 @@ app.add_middleware(
 # Inclui todos os roteadores
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(setores.router)
+app.include_router(sectors.router)
 app.include_router(equipments.router)
 app.include_router(reservations.router)
 app.include_router(admin.router)

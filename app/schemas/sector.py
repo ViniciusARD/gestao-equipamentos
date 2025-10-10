@@ -1,18 +1,18 @@
-# app/schemas/setor.py
+# app/schemas/sector.py
 
 from pydantic import BaseModel
 from typing import Optional
 
-class SetorBase(BaseModel):
+class SectorBase(BaseModel):
     name: str
 
-class SetorCreate(SetorBase):
+class SectorCreate(SectorBase):
     pass
 
-class SetorUpdate(BaseModel):
+class SectorUpdate(BaseModel):
     name: Optional[str] = None
 
-class SetorOut(SetorBase):
+class SectorOut(SectorBase):
     id: int
 
     class Config:

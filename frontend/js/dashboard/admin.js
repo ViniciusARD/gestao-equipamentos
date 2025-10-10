@@ -4,8 +4,6 @@ import { API_URL, apiFetch } from './api.js';
 import { renderView, renderStatusBadge, renderRoleBadge, renderLogLevelBadge, showToast, setButtonLoading, openSectorModal } from './ui.js';
 import { loadAnalyticsDashboardView } from './analytics.js';
 
-// ... (funções renderAdminReservationActions, renderInventoryRow existentes)
-
 function renderAdminReservationActions(reservation) {
     if (reservation.status === 'pending') {
         return `
@@ -19,7 +17,6 @@ function renderAdminReservationActions(reservation) {
     return '---';
 }
 
-// <<< --- FUNÇÃO ATUALIZADA --- >>>
 function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
     const roles = ['user', 'requester', 'manager', 'admin'];
@@ -39,7 +36,7 @@ function renderUserActions(user, currentUserId) {
             </button>`;
     } else {
         promoteButton = `
-            <button class="btn btn-success btn-sm" disabled title="Já está no nível máximo">
+            <button class="btn btn-success btn-sm" disabled title="Já está no nível mais alto">
                 <i class="bi bi-arrow-up-circle"></i>
             </button>`;
     }
@@ -53,19 +50,18 @@ function renderUserActions(user, currentUserId) {
             </button>`;
     } else {
         demoteButton = `
-            <button class="btn btn-warning btn-sm" disabled title="Já está no nível mínimo">
+            <button class="btn btn-warning btn-sm" disabled title="Já está no nível mais baixo">
                 <i class="bi bi-arrow-down-circle"></i>
             </button>`;
     }
 
-    // Botão de Ativar/Inativar
     const toggleActiveButton = user.is_active
-        ? `<button class="btn btn-secondary btn-sm user-action-btn" data-user-id="${user.id}" data-action="toggle-active" data-is-active="true" title="Inativar Usuário" ${isCurrentUser ? 'disabled' : ''}><i class="bi bi-pause-circle"></i></button>`
+        ? `<button class="btn btn-secondary btn-sm user-action-btn" data-user-id="${user.id}" data-action="toggle-active" data-is-active="true" title="Desativar Usuário" ${isCurrentUser ? 'disabled' : ''}><i class="bi bi-pause-circle"></i></button>`
         : `<button class="btn btn-success btn-sm user-action-btn" data-user-id="${user.id}" data-action="toggle-active" data-is-active="false" title="Ativar Usuário"><i class="bi bi-play-circle"></i></button>`;
 
 
     const deleteButton = `
-        <button class="btn btn-danger btn-sm user-action-btn" data-user-id="${user.id}" data-action="delete" title="Excluir Usuário" ${isCurrentUser ? 'disabled' : ''}>
+        <button class="btn btn-danger btn-sm user-action-btn" data-user-id="${user.id}" data-action="delete" title="Deletar Usuário" ${isCurrentUser ? 'disabled' : ''}>
             <i class="bi bi-trash"></i>
         </button>`;
 
@@ -82,13 +78,11 @@ function renderInventoryRow(type) {
             <td>
                 <button class="btn btn-info btn-sm me-1 text-white inventory-action-btn" data-action="view-units" data-type-id="${type.id}" data-type-name="${type.name}" title="Gerenciar Unidades"><i class="bi bi-hdd-stack"></i></button>
                 <button class="btn btn-secondary btn-sm me-1 inventory-action-btn" data-action="edit-type" data-type-id="${type.id}" title="Editar Tipo"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-danger btn-sm inventory-action-btn" data-action="delete-type" data-type-id="${type.id}" title="Excluir Tipo"><i class="bi bi-trash"></i></button>
+                <button class="btn btn-danger btn-sm inventory-action-btn" data-action="delete-type" data-type-id="${type.id}" title="Deletar Tipo"><i class="bi bi-trash"></i></button>
             </td>
         </tr>
     `;
 }
-
-// ... (demais funções de `load...` existentes)
 
 export async function loadManageReservationsView(token, params = {}) {
     const statusFilters = [
@@ -101,7 +95,7 @@ export async function loadManageReservationsView(token, params = {}) {
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h1 class="h2">Gerenciar Reservas</h1>
+            <h1 class="h2">Gerir Reservas</h1>
         </div>
         <div class="card mb-4">
             <div class="card-body">
@@ -170,7 +164,6 @@ export async function loadManageReservationsView(token, params = {}) {
     }
 }
 
-// <<< --- FUNÇÃO ATUALIZADA --- >>>
 export async function loadManageUsersView(token, currentUserId, searchTerm = '', roleFilter = 'all') {
     const roleFilters = [
         { key: 'all', text: 'Todos' },
@@ -182,7 +175,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h1 class="h2">Gerenciar Usuários</h1>
+            <h1 class="h2">Gerir Usuários</h1>
         </div>
         <div class="row mb-4">
             <div class="col-lg-7 mb-2 mb-lg-0">
@@ -220,7 +213,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
-                    <tr><th>ID</th><th>Username</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
+                    <tr><th>ID</th><th>Usuário</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
                     ${users.map(user => `
@@ -228,7 +221,7 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
                             <td>${user.id}</td>
                             <td>${user.username}</td>
                             <td>${user.email}</td>
-                            <td class="sector-cell">${user.setor ? user.setor.name : '<span class="text-muted">N/A</span>'}</td>
+                            <td class="sector-cell">${user.sector ? user.sector.name : '<span class="text-muted">N/A</span>'}</td>
                             <td class="role-cell">${renderRoleBadge(user.role)}</td>
                             <td class="status-cell">${user.is_active ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>'}</td>
                             <td class="action-cell">${renderUserActions(user, currentUserId)}</td>
@@ -255,7 +248,7 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h1 class="h2">Gerenciar Inventário</h1>
+            <h1 class="h2">Gerir Inventário</h1>
             <button class="btn btn-primary inventory-action-btn" data-action="create-type"><i class="bi bi-plus-circle me-2"></i>Adicionar Tipo</button>
         </div>
         <div class="row mb-4">
@@ -309,7 +302,7 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
                     <tr>
                         <th>Nome</th>
                         <th>Categoria</th>
-                        <th class="text-center">Total Unidades</th>
+                        <th class="text-center">Unidades Totais</th>
                         <th class="text-center">Disponíveis</th>
                         <th>Ações</th>
                     </tr>
@@ -340,14 +333,14 @@ export async function loadSystemLogsView(token, params = {}) {
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-lg-6">
-                        <input type="search" id="logsSearchInput" class="form-control" placeholder="Buscar na mensagem do log..." value="${params.search || ''}">
+                        <input type="search" id="logsSearchInput" class="form-control" placeholder="Buscar na mensagem de log..." value="${params.search || ''}">
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <select id="logsLevelFilter" class="form-select">
                             <option value="all" ${!params.level || params.level === 'all' ? 'selected' : ''}>Todos os Níveis</option>
                             <option value="INFO" ${params.level === 'INFO' ? 'selected' : ''}>Info</option>
-                            <option value="WARNING" ${params.level === 'WARNING' ? 'selected' : ''}>Warning</option>
-                            <option value="ERROR" ${params.level === 'ERROR' ? 'selected' : ''}>Error</option>
+                            <option value="WARNING" ${params.level === 'WARNING' ? 'selected' : ''}>Aviso</option>
+                            <option value="ERROR" ${params.level === 'ERROR' ? 'selected' : ''}>Erro</option>
                         </select>
                     </div>
                     <div class="col-lg-3 col-md-6">
@@ -357,11 +350,11 @@ export async function loadSystemLogsView(token, params = {}) {
                         </select>
                     </div>
                     <div class="col-lg-3 col-md-6">
-                        <label for="logsStartDate" class="form-label small">Data Início</label>
+                        <label for="logsStartDate" class="form-label small">Data de Início</label>
                         <input type="date" id="logsStartDate" class="form-control" value="${params.start_date || ''}">
                     </div>
                     <div class="col-lg-3 col-md-6">
-                        <label for="logsEndDate" class="form-label small">Data Fim</label>
+                        <label for="logsEndDate" class="form-label small">Data Final</label>
                         <input type="date" id="logsEndDate" class="form-control" value="${params.end_date || ''}">
                     </div>
                     <div class="col-lg-6 d-flex align-items-end">
@@ -413,12 +406,10 @@ export async function loadSystemLogsView(token, params = {}) {
     }
 }
 
-
-// ATUALIZADA: Agora aceita um `searchTerm`
 export async function loadManageSectorsView(token, searchTerm = '') {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h1 class="h2">Gerenciar Setores</h1>
+            <h1 class="h2">Gerir Setores</h1>
             <button class="btn btn-primary" id="add-sector-btn"><i class="bi bi-plus-circle me-2"></i>Adicionar Setor</button>
         </div>
         <div class="row mb-4">
@@ -434,13 +425,13 @@ export async function loadManageSectorsView(token, searchTerm = '') {
 
     const container = document.getElementById('listContainer');
     try {
-        const url = new URL(`${API_URL}/setores`);
+        const url = new URL(`${API_URL}/sectors`);
         if (searchTerm) {
             url.searchParams.append('search', searchTerm);
         }
-        const setores = await apiFetch(url, token);
+        const sectors = await apiFetch(url, token);
         
-        if (setores.length === 0) {
+        if (sectors.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum setor encontrado.</p>';
             return;
         }
@@ -450,13 +441,13 @@ export async function loadManageSectorsView(token, searchTerm = '') {
                     <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
-                    ${setores.map(setor => `
-                        <tr id="sector-row-${setor.id}">
-                            <td>${setor.id}</td>
-                            <td class="sector-name-cell">${setor.name}</td>
+                    ${sectors.map(sector => `
+                        <tr id="sector-row-${sector.id}">
+                            <td>${sector.id}</td>
+                            <td class="sector-name-cell">${sector.name}</td>
                             <td>
-                                <button class="btn btn-secondary btn-sm me-1 sector-action-btn" data-action="edit" data-sector-id="${setor.id}" data-sector-name="${setor.name}" title="Editar Setor"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-danger btn-sm sector-action-btn" data-action="delete" data-sector-id="${setor.id}" data-sector-name="${setor.name}" title="Excluir Setor"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-secondary btn-sm me-1 sector-action-btn" data-action="edit" data-sector-id="${sector.id}" data-sector-name="${sector.name}" title="Editar Setor"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-danger btn-sm sector-action-btn" data-action="delete" data-sector-id="${sector.id}" data-sector-name="${sector.name}" title="Deletar Setor"><i class="bi bi-trash"></i></button>
                             </td>
                         </tr>
                     `).join('')}
@@ -468,7 +459,6 @@ export async function loadManageSectorsView(token, searchTerm = '') {
     }
 }
 
-// ... (demais funções handle... existentes)
 export async function handleUpdateReservationStatus(button, token) {
     const { reservationId, action, unitIdentifier } = button.dataset;
 
@@ -497,21 +487,20 @@ export async function handleUpdateReservationStatus(button, token) {
     }
 }
 
-// <<< --- FUNÇÃO ATUALIZADA --- >>>
 export async function handleUserAction(button, token, currentUserId) {
     const { userId, action, currentRole, isActive } = button.dataset;
     
-    if (action === 'delete' && !confirm(`Tem certeza que deseja excluir o usuário ID ${userId}?`)) return;
+    if (action === 'delete' && !confirm(`Tem certeza que deseja deletar o usuário ID ${userId}?`)) return;
 
     if (action === 'change-sector') {
         const modal = new bootstrap.Modal(document.getElementById('userSectorModal'));
         const form = document.getElementById('userSectorForm');
         form.dataset.userId = userId;
         
-        const setorSelect = document.getElementById('userSectorSelect');
-        setorSelect.innerHTML = '<option>Carregando...</option>';
-        const setores = await apiFetch(`${API_URL}/setores`, token);
-        setorSelect.innerHTML = '<option value="">Nenhum</option>' + setores.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        const sectorSelect = document.getElementById('userSectorSelect');
+        sectorSelect.innerHTML = '<option>Carregando...</option>';
+        const sectors = await apiFetch(`${API_URL}/sectors`, token);
+        sectorSelect.innerHTML = '<option value="">Nenhum</option>' + sectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
         modal.show();
         return;
@@ -541,11 +530,11 @@ export async function handleUserAction(button, token, currentUserId) {
         } else if (action === 'toggle-active') {
             const newStatus = isActive !== 'true';
             updated = await apiFetch(`${API_URL}/admin/users/${userId}/status`, token, { method: 'PATCH', body: { is_active: newStatus } });
-            showToast(`Usuário ${newStatus ? 'ativado' : 'inativado'}!`, 'success');
+            showToast(`Usuário ${newStatus ? 'ativado' : 'desativado'}!`, 'success');
         } else if (action === 'delete') {
             await apiFetch(`${API_URL}/admin/users/${userId}`, token, { method: 'DELETE' });
             document.getElementById(`user-row-${userId}`).remove();
-            showToast('Usuário excluído!', 'success');
+            showToast('Usuário deletado!', 'success');
         }
 
         if (updated) {

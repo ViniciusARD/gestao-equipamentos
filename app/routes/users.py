@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
-from app.models.setor import Setor
+from app.models.sector import Sector
 from app.schemas.user import UserOut, UserUpdate
 from app.security import get_current_user
 
@@ -36,11 +36,14 @@ def update_user_me(
             raise HTTPException(status_code=409, detail="Este nome de usuário já está em uso.")
         current_user.username = user_update.username
     
-    if user_update.setor_id is not None:
-        setor = db.query(Setor).filter(Setor.id == user_update.setor_id).first()
-        if not setor:
+    if user_update.sector_id is not None:
+        sector = db.query(Sector).filter(Sector.id == user_update.sector_id).first()
+        if not sector:
             raise HTTPException(status_code=404, detail="Setor não encontrado.")
-        current_user.setor_id = user_update.setor_id
+        current_user.sector_id = user_update.sector_id
+    else: # Permite remover o setor
+        current_user.sector_id = None
+
 
     db.commit()
     db.refresh(current_user)

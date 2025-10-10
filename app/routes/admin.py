@@ -8,12 +8,12 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
-from app.models.setor import Setor
+from app.models.sector import Sector
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.equipment_type import EquipmentType
 from app.models.google_token import GoogleOAuthToken
-from app.models.unit_history import UnitHistory # <<-- IMPORTAR
+from app.models.unit_history import UnitHistory
 from app.schemas.reservation import ReservationOut
 from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate, UserStatusUpdate
 from app.schemas.user import UserOut
@@ -50,7 +50,7 @@ def list_all_reservations(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None)
 ):
-    """(Manager) Lista todas as reservas, com filtros avançados."""
+    """(Gerente) Lista todas as reservas, com filtros avançados."""
     query = (
         db.query(Reservation)
         .join(Reservation.user)
@@ -93,7 +93,7 @@ def update_reservation_status(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Manager) Atualiza o status de uma reserva (approve, reject, return)."""
+    """(Gerente) Atualiza o status de uma reserva (aprovar, rejeitar, devolver)."""
     db_reservation = db.query(Reservation).options(joinedload(Reservation.user), joinedload(Reservation.equipment_unit)).filter(Reservation.id == reservation_id).first()
     if not db_reservation:
         raise HTTPException(status_code=404, detail="Reserva não encontrada.")
@@ -107,7 +107,6 @@ def update_reservation_status(
     elif update_data.status.value == 'rejected':
         unit.status = 'available'
     
-    # <<-- LÓGICA DE DEVOLUÇÃO MODIFICADA -->>
     elif update_data.status.value == 'returned':
         db_reservation.return_notes = update_data.return_notes
         if update_data.return_status == 'maintenance':
@@ -146,7 +145,7 @@ def list_users(
     limit: int = 100
 ):
     """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
-    query = db.query(User).options(joinedload(User.setor))
+    query = db.query(User).options(joinedload(User.sector))
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -202,7 +201,6 @@ def set_user_role(
     
     return db_user
     
-# <<< --- NOVO ENDPOINT ADICIONADO --- >>>
 @router.patch("/users/{user_id}/status", response_model=UserOut)
 def set_user_status(
     user_id: int,
@@ -231,17 +229,17 @@ def set_user_sector(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user) # Manager ou Admin
 ):
-    """(Manager) Define o setor de um usuário."""
-    db_user = db.query(User).options(joinedload(User.setor)).filter(User.id == user_id).first()
+    """(Gerente) Define o setor de um usuário."""
+    db_user = db.query(User).options(joinedload(User.sector)).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
-    if sector_update.setor_id is not None:
-        setor = db.query(Setor).filter(Setor.id == sector_update.setor_id).first()
-        if not setor:
+    if sector_update.sector_id is not None:
+        sector = db.query(Sector).filter(Sector.id == sector_update.sector_id).first()
+        if not sector:
             raise HTTPException(status_code=404, detail="Setor não encontrado.")
 
-    db_user.setor_id = sector_update.setor_id
+    db_user.sector_id = sector_update.sector_id
     db.commit()
     db.refresh(db_user)
     return db_user
