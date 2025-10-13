@@ -13,7 +13,7 @@ import {
     handleUserAction,
     handleEquipmentTypeSubmit,
     loadAnalyticsDashboardView
-} from './admin.js';
+} from './admin.js'; // A importação continua a mesma, mas agora busca do novo "index"
 
 let appState = {};
 
