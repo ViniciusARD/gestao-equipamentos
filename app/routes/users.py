@@ -31,9 +31,6 @@ def update_user_me(
     Permite que o usuário autenticado atualize seu nome de usuário e setor.
     """
     if user_update.username:
-        existing_user = db.query(User).filter(User.username == user_update.username).first()
-        if existing_user and existing_user.id != current_user.id:
-            raise HTTPException(status_code=409, detail="Este nome de usuário já está em uso.")
         current_user.username = user_update.username
     
     if user_update.sector_id is not None:

@@ -8,7 +8,7 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(80), unique=True, nullable=False, index=True)
+    username = Column(String(80), nullable=False, index=True)
     email = Column(String(120), unique=True, nullable=False, index=True)
     password_hash = Column(String(256), nullable=False)
     role = Column(String(20), nullable=False, default='user')
@@ -22,6 +22,9 @@ class User(Base):
 
     terms_accepted = Column(Boolean, default=False, nullable=False)
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # NOVO CAMPO
+    login_attempts = Column(Integer, default=0, nullable=False)
 
     # --- RELACIONAMENTOS ---
     sector = relationship("Sector", back_populates="users")

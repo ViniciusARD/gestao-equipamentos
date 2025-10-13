@@ -7,7 +7,7 @@ CREATE TABLE sectors (
 -- Table to store system user data
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(80) UNIQUE NOT NULL,
+    username VARCHAR(80) NOT NULL,
     email VARCHAR(120) UNIQUE NOT NULL,
     password_hash VARCHAR(256) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'requester', 'manager', 'admin')),
@@ -18,6 +18,7 @@ CREATE TABLE users (
     otp_enabled BOOLEAN NOT NULL DEFAULT false,
     terms_accepted BOOLEAN NOT NULL DEFAULT false,
     terms_accepted_at TIMESTAMP WITH TIME ZONE,
+    login_attempts INTEGER NOT NULL DEFAULT 0, -- NOVA COLUNA
     CONSTRAINT fk_user_sector FOREIGN KEY(sector_id) REFERENCES sectors(id) ON DELETE SET NULL
 );
 

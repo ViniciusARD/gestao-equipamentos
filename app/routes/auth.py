@@ -34,6 +34,9 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
+# Constante para o limite de tentativas
+LOGIN_ATTEMPT_LIMIT = 5
+
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user: UserCreate,
@@ -71,10 +74,6 @@ async def register_user(
                 token=verification_token
             )
             return db_user_by_email
-
-    db_user_by_username = db.query(User).filter(User.username == user.username).first()
-    if db_user_by_username:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome de usuário já existe")
 
     if user.sector_id:
         sector = db.query(Sector).filter(Sector.id == user.sector_id).first() # CORREÇÃO AQUI
@@ -133,14 +132,44 @@ def verify_user_email(token: str, db: Session = Depends(get_db)):
 @router.post("/login", response_model=LoginResponse)
 async def login_for_access_token(user_credentials: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Email ou senha incorretos",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    if not user or not verify_password(user_credentials.password, user.password_hash):
-        create_log(db, None, "WARNING", f"Tentativa de login falhou para o email: {user_credentials.email}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if not user:
+        create_log(db, None, "WARNING", f"Tentativa de login para um e-mail não existente: {user_credentials.email}")
+        raise credentials_exception
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Sua conta está inativa. Entre em contato com um administrador.")
+
+    if not verify_password(user_credentials.password, user.password_hash):
+        # --- LÓGICA DE TENTATIVAS DE LOGIN ---
+        user.login_attempts += 1
+        
+        if user.login_attempts >= LOGIN_ATTEMPT_LIMIT:
+            user.is_active = False
+            db.commit()
+            create_log(db, user.id, "ERROR", f"Usuário '{user.username}' desativado por exceder o limite de tentativas de login.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Sua conta foi desativada por exceder as {LOGIN_ATTEMPT_LIMIT} tentativas de login. Contate o suporte."
+            )
+        
+        db.commit()
+        remaining_attempts = LOGIN_ATTEMPT_LIMIT - user.login_attempts
+        create_log(db, user.id, "WARNING", f"Tentativa de login falhou para o usuário '{user.username}'. Tentativas restantes: {remaining_attempts}")
+        
+        # Lança a exceção padrão para não informar qual campo está errado
+        raise credentials_exception
+        # --- FIM DA LÓGICA ---
+
+    # Se o login for bem-sucedido, zera as tentativas
+    user.login_attempts = 0
+    db.commit()
 
     if not user.is_verified:
         verification_token = create_verification_token(email=user.email)
@@ -151,10 +180,6 @@ async def login_for_access_token(user_credentials: UserLogin, background_tasks: 
             token=verification_token
         )
         raise HTTPException(status_code=403, detail="Sua conta ainda não foi verificada. Um novo link de verificação foi enviado para o seu e-mail.")
-
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Sua conta está inativa.")
-
 
     if not user.terms_accepted:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você precisa aceitar os Termos de Uso para fazer login.")
