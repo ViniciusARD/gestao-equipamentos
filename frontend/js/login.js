@@ -16,6 +16,9 @@ async function handleLoginFormSubmit(event) {
     submitButton.disabled = true;
     errorMessageDiv.classList.add('d-none');
     errorMessageDiv.textContent = '';
+    // Garante que a mensagem de erro tenha a classe de perigo por padrão
+    errorMessageDiv.classList.remove('alert-info');
+    errorMessageDiv.classList.add('alert-danger');
 
     try {
         // Envia a requisição para a API
@@ -44,6 +47,13 @@ async function handleLoginFormSubmit(event) {
                 const twoFAModal = new bootstrap.Modal(document.getElementById('2faModal'));
                 document.getElementById('tempToken').value = data.temp_token;
                 twoFAModal.show();
+            } else if (data.login_step === 'verification_required') {
+                // --- ALTERAÇÃO AQUI ---
+                // Se a verificação de e-mail for necessária, exibe a mensagem informativa
+                errorMessageDiv.textContent = data.message;
+                errorMessageDiv.classList.remove('d-none');
+                errorMessageDiv.classList.remove('alert-danger');
+                errorMessageDiv.classList.add('alert-info');
             } else {
                 // Login completo e bem-sucedido
                 localStorage.setItem('accessToken', data.access_token);

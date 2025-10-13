@@ -50,6 +50,7 @@ class LoginResponse(BaseModel):
     refresh_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
     temp_token: Optional[str] = None
+    message: Optional[str] = None # <-- CAMPO ADICIONADO
 
 class TwoFactorRequest(BaseModel):
     temp_token: str

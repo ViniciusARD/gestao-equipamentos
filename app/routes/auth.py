@@ -10,7 +10,7 @@ from io import BytesIO
 
 from app.database import get_db
 from app.models.user import User
-from app.models.sector import Sector  # CORREÇÃO AQUI
+from app.models.sector import Sector
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import (
     UserCreate, UserOut, Token, UserLogin, ForgotPasswordRequest,
@@ -76,7 +76,7 @@ async def register_user(
             return db_user_by_email
 
     if user.sector_id:
-        sector = db.query(Sector).filter(Sector.id == user.sector_id).first() # CORREÇÃO AQUI
+        sector = db.query(Sector).filter(Sector.id == user.sector_id).first()
         if not sector:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setor não encontrado.")
 
@@ -179,7 +179,13 @@ async def login_for_access_token(user_credentials: UserLogin, background_tasks: 
             username=user.username,
             token=verification_token
         )
-        raise HTTPException(status_code=403, detail="Sua conta ainda não foi verificada. Um novo link de verificação foi enviado para o seu e-mail.")
+        # --- ALTERAÇÃO AQUI ---
+        # Em vez de lançar uma exceção, retorna uma resposta controlada
+        # para garantir que a tarefa em segundo plano seja executada.
+        return LoginResponse(
+            login_step="verification_required",
+            message="Sua conta ainda não foi verificada. Um novo link de verificação foi enviado para o seu e-mail."
+        )
 
     if not user.terms_accepted:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você precisa aceitar os Termos de Uso para fazer login.")
@@ -187,17 +193,17 @@ async def login_for_access_token(user_credentials: UserLogin, background_tasks: 
     if user.otp_enabled:
         temp_token_data = {"sub": str(user.id), "scope": "2fa_verification"}
         temp_token = create_access_token(temp_token_data, expires_delta=timedelta(minutes=5))
-        return {"login_step": "2fa_required", "temp_token": temp_token}
+        return LoginResponse(login_step="2fa_required", temp_token=temp_token)
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
     create_log(db, user.id, "INFO", f"Usuário '{user.username}' logado com sucesso.")
-    return {
-        "login_step": "completed",
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return LoginResponse(
+        login_step="completed",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
+    )
 
 
 @router.post("/login/2fa", response_model=Token)
