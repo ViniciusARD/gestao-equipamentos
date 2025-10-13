@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch('http://127.0.0.1:8000/sectors');
         if (!response.ok) {
-            throw new Error('Could not load sectors.');
+            throw new Error('Não foi possível carregar os setores.');
         }
         const sectors = await response.json();
         sectors.forEach(sector => {
@@ -49,10 +49,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectorSelect.appendChild(option);
         });
     } catch (error) {
-        console.error('Error fetching sectors:', error);
+        console.error('Erro ao buscar setores:', error);
         sectorSelect.disabled = true;
         const errorOption = document.createElement('option');
-        errorOption.textContent = 'Error loading sectors';
+        errorOption.textContent = 'Erro ao carregar os setores';
         sectorSelect.appendChild(errorOption);
     }
 });
@@ -92,22 +92,22 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         const data = await response.json();
 
         if (response.ok) {
-            messageDiv.innerHTML = 'Registration successful! <br><strong>We have sent a verification link to your email. Please activate your account to be able to log in.</strong>';
+            messageDiv.innerHTML = 'Cadastro realizado com sucesso! <br><strong>Enviamos um link de verificação para o seu e-mail. Por favor, ative sua conta para poder fazer o login.</strong>';
             messageDiv.className = 'alert alert-success mt-3';
         } else {
             if (data.detail && Array.isArray(data.detail.errors)) {
                 const errorList = data.detail.errors.map(err => `<li>${err}</li>`).join('');
-                messageDiv.innerHTML = `<strong>The password does not meet the following requirements:</strong><ul>${errorList}</ul>`;
+                messageDiv.innerHTML = `<strong>A senha não atende aos seguintes requisitos:</strong><ul>${errorList}</ul>`;
             } else {
-                messageDiv.textContent = data.detail || 'An error occurred while trying to register.';
+                messageDiv.textContent = data.detail || 'Ocorreu um erro ao tentar se registrar.';
             }
             messageDiv.className = 'alert alert-danger mt-3';
         }
 
     } catch (error) {
-        messageDiv.textContent = 'Could not connect to the server. Please try again later.';
+        messageDiv.textContent = 'Não foi possível conectar ao servidor. Por favor, tente novamente mais tarde.';
         messageDiv.className = 'alert alert-danger mt-3';
-        console.error('Registration error:', error);
+        console.error('Erro no registro:', error);
     } finally {
         if (messageDiv.classList.contains('alert-danger')) {
             submitButton.disabled = false;
