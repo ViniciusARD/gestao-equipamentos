@@ -9,6 +9,5 @@ export * from './admin/views.js';
 // Importa e exporta as funções que lidam com ações e eventos do admin
 export * from './admin/handlers.js';
 
-// Exporta a função do painel de análise para manter a compatibilidade
-import { loadAnalyticsDashboardView } from './analytics.js';
-export { loadAnalyticsDashboardView };
+// Importa e exporta as funções do painel de análise
+export * from './admin/analytics.js';

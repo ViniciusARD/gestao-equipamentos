@@ -1,14 +1,14 @@
-// js/dashboard/analytics.js
+// js/dashboard/admin/analytics.js
 
-import { API_URL, apiFetch } from './api.js';
-import { renderView } from './ui.js';
+import { API_URL, apiFetch } from '../api.js';
+import { renderView } from '../ui.js';
 
 // Variáveis para armazenar as instâncias dos gráficos
 let charts = {
     equipmentsChart: null,
     sectorsChart: null,
     usersChart: null,
-    reservationStatusChart: null // <-- NOVO GRÁFICO
+    reservationStatusChart: null
 };
 
 // Função principal para carregar a view do painel
@@ -85,7 +85,6 @@ async function fetchAndRenderCharts(token, params = {}) {
         renderChart('equipmentsChart', 'bar', 'Nº de Reservas', data.top_equipments);
         renderChart('sectorsChart', 'pie', 'Nº de Reservas', data.top_sectors);
         renderChart('usersChart', 'bar', 'Nº de Reservas', data.top_users, { indexAxis: 'y' });
-        // <-- NOVO GRÁFICO SENDO RENDERIZADO -->
         renderChart('reservationStatusChart', 'doughnut', 'Total', data.reservation_status_counts);
 
 
@@ -105,7 +104,6 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
         charts[canvasId].destroy();
     }
     
-    // <<< --- MODIFICAÇÃO PARA EIXOS INTEIROS --- >>>
     const scalesOptions = {};
     if (type === 'bar') {
         // Se for um gráfico de barras com eixo y (padrão)
