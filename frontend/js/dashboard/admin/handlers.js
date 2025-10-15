@@ -6,12 +6,13 @@ import { renderAdminReservationActions, renderUserActions } from './renderers.js
 import { loadManageInventoryView } from './views.js';
 
 export async function handleUpdateReservationStatus(button, token) {
-    const { reservationId, action, unitIdentifier } = button.dataset;
+    const { reservationId, action, unitIdentifier, userIdentifier } = button.dataset;
 
     if (action === 'returned') {
         const returnModal = new bootstrap.Modal(document.getElementById('returnModal'));
         document.getElementById('returnReservationId').value = reservationId;
         document.getElementById('returnUnitIdentifier').textContent = unitIdentifier;
+        document.getElementById('returnUserIdentifier').textContent = userIdentifier;
         document.getElementById('returnForm').reset();
         document.getElementById('returnMessage').innerHTML = '';
         returnModal.show();

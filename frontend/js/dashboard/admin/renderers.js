@@ -10,7 +10,7 @@ export function renderAdminReservationActions(reservation) {
         `;
     }
     if (reservation.status === 'approved') {
-        return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
+        return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" data-user-identifier="${reservation.user.username}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
     }
     return '---';
 }

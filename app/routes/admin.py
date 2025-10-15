@@ -121,7 +121,7 @@ def update_reservation_status(
             history_event = UnitHistory(
                 unit_id=unit.id,
                 event_type='sent_to_maintenance',
-                notes=f"Devolvido com defeito: {update_data.return_notes}",
+                notes=f"Devolvido com defeito por '{db_reservation.user.username}'. Obs: {update_data.return_notes}",
                 user_id=manager_user.id,
                 reservation_id=db_reservation.id
             )
@@ -130,7 +130,7 @@ def update_reservation_status(
             history_event = UnitHistory(
                 unit_id=unit.id,
                 event_type='returned_ok',
-                notes=update_data.return_notes,
+                notes=f"Devolvido por '{db_reservation.user.username}'. Obs: {update_data.return_notes}",
                 user_id=manager_user.id,
                 reservation_id=db_reservation.id
             )

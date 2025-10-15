@@ -238,7 +238,12 @@
                 <div class="modal-body">
                     <form id="returnForm">
                         <input type="hidden" id="returnReservationId">
-                        <p>Como o equipamento <strong id="returnUnitIdentifier"></strong> foi devolvido?</p>
+                        <p>
+                            <strong>Equipamento:</strong> <strong id="returnUnitIdentifier"></strong><br>
+                            <strong>Devolvido por:</strong> <strong id="returnUserIdentifier"></strong>
+                        </p>
+                        <hr>
+                        <p>Como o equipamento foi devolvido?</p>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="returnStatus" id="returnStatusOK" value="ok" checked>
                             <label class="form-check-label" for="returnStatusOK">
