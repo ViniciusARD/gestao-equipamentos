@@ -85,7 +85,7 @@ export async function loadManageReservationsView(token, params = {}) {
     }
 }
 
-export async function loadManageUsersView(token, currentUserId, searchTerm = '', roleFilter = 'all') {
+export async function loadManageUsersView(token, currentUserId, params = {}) {
     const roleFilters = [
         { key: 'all', text: 'Todos' },
         { key: 'user', text: 'Usuários' },
@@ -94,21 +94,31 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
         { key: 'admin', text: 'Admins' }
     ];
 
+    const sectors = await apiFetch(`${API_URL}/sectors/`, token);
+
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerir Usuários</h1>
         </div>
-        <div class="row mb-4">
-            <div class="col-lg-7 mb-2 mb-lg-0">
+        <div class="row mb-3">
+            <div class="col-lg-8">
                 <div class="input-group">
-                    <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${searchTerm}">
+                    <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
                     <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
                 </div>
             </div>
-            <div class="col-lg-5">
+            <div class="col-lg-4">
+                <select id="userSectorFilter" class="form-select">
+                    <option value="">Todos os setores</option>
+                    ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-12">
                 <div class="btn-group w-100" role="group">
                     ${roleFilters.map(filter => `
-                        <button type="button" class="btn ${roleFilter === filter.key ? 'btn-primary' : 'btn-outline-primary'} user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
+                        <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
                     `).join('')}
                 </div>
             </div>
@@ -120,12 +130,10 @@ export async function loadManageUsersView(token, currentUserId, searchTerm = '',
 
     try {
         const url = new URL(`${API_URL}/admin/users`);
-        if (searchTerm) {
-            url.searchParams.append('search', searchTerm);
-        }
-        if (roleFilter && roleFilter !== 'all') {
-            url.searchParams.append('role', roleFilter);
-        }
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.role && params.role !== 'all') url.searchParams.append('role', params.role);
+        if (params.sector_id) url.searchParams.append('sector_id', params.sector_id);
+        
         const users = await apiFetch(url, token);
         if (users.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum usuário encontrado com os filtros aplicados.</p>';

@@ -148,6 +148,7 @@ def list_users(
     admin_user: User = Depends(get_current_admin_user),
     search: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
+    sector_id: Optional[int] = Query(None),
     skip: int = 0,
     limit: int = 100
 ):
@@ -164,6 +165,9 @@ def list_users(
     
     if role and role != "all":
         query = query.filter(User.role == role)
+
+    if sector_id:
+        query = query.filter(User.sector_id == sector_id)
 
     users = query.order_by(User.username).offset(skip).limit(limit).all()
     return users

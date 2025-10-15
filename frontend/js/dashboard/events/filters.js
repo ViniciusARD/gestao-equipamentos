@@ -41,10 +41,13 @@ export function applyMyReservationsFilter(appState) {
 
 export function applyUsersFilter(appState) {
     const token = appState.token;
-    const searchTerm = document.getElementById('usersSearchInput').value.trim();
     const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
-    const role = activeRoleBtn ? activeRoleBtn.dataset.role : 'all';
-    loadManageUsersView(token, appState.currentUser.id, searchTerm, role);
+    const params = {
+        search: document.getElementById('usersSearchInput').value.trim(),
+        role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
+        sector_id: document.getElementById('userSectorFilter').value
+    };
+    loadManageUsersView(token, appState.currentUser.id, params);
 }
 
 export function applyInventoryFilter(appState) {

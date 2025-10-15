@@ -68,7 +68,7 @@ async function handleGlobalClick(event, appState) {
         'nav-my-reservations': () => loadMyReservationsView(token, {}),
         'nav-my-account': () => loadMyAccountView(appState.currentUser, token),
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
-        'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id),
+        'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id, {}),
         'nav-manage-inventory': () => loadManageInventoryView(token),
         'nav-manage-sectors': () => loadManageSectorsView(token),
         'nav-system-logs': () => loadSystemLogsView(token, {}),
@@ -137,6 +137,9 @@ function handleGlobalChange(event, appState) {
     }
     if (target.matches('#inventoryCategoryFilter')) {
         applyInventoryFilter(appState);
+    }
+    if (target.matches('#userSectorFilter')) {
+        applyUsersFilter(appState);
     }
 }
 
