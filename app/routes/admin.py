@@ -21,6 +21,7 @@ from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
 from app.models.activity_log import ActivityLog
 from app.schemas.logs import ActivityLogOut
+from app.email_utils import send_reservation_status_email
 
 router = APIRouter(
     prefix="/admin",
@@ -94,7 +95,11 @@ def update_reservation_status(
     manager_user: User = Depends(get_current_manager_user)
 ):
     """(Gerente) Atualiza o status de uma reserva (aprovar, rejeitar, devolver)."""
-    db_reservation = db.query(Reservation).options(joinedload(Reservation.user), joinedload(Reservation.equipment_unit)).filter(Reservation.id == reservation_id).first()
+    db_reservation = db.query(Reservation).options(
+        joinedload(Reservation.user), 
+        joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+    ).filter(Reservation.id == reservation_id).first()
+
     if not db_reservation:
         raise HTTPException(status_code=404, detail="Reserva não encontrada.")
 
@@ -103,10 +108,12 @@ def update_reservation_status(
     if update_data.status.value == 'approved':
         unit.status = 'reserved'
         background_tasks.add_task(approve_and_create_calendar_event, db, db_reservation)
+        background_tasks.add_task(send_reservation_status_email, db_reservation)
 
     elif update_data.status.value == 'rejected':
         unit.status = 'available'
-    
+        background_tasks.add_task(send_reservation_status_email, db_reservation)
+
     elif update_data.status.value == 'returned':
         db_reservation.return_notes = update_data.return_notes
         if update_data.return_status == 'maintenance':

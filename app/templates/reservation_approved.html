@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reserva Aprovada</title>
+</head>
+<body>
+    <p>Olá, {{ username }}!</p>
+    <p>Temos uma ótima notícia! A sua solicitação de reserva para o equipamento abaixo foi <strong>APROVADA</strong>.</p>
+    
+    <h3>Detalhes da Reserva:</h3>
+    <ul>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Início:</strong> {{ start_time }}</li>
+        <li><strong>Fim:</strong> {{ end_time }}</li>
+    </ul>
+
+    <p>Por favor, dirija-se ao local de retirada no horário agendado. Lembre-se de devolver o equipamento nas mesmas condições em que o recebeu.</p>
+    <p>Atenciosamente,</p>
+    <p>Equipe de Gestão de Equipamentos</p>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reserva Rejeitada</title>
+</head>
+<body>
+    <p>Olá, {{ username }}.</p>
+    <p>A sua solicitação de reserva para o equipamento abaixo foi <strong>REJEITADA</strong>.</p>
+    
+    <h3>Detalhes da Reserva Solicitada:</h3>
+    <ul>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Início:</strong> {{ start_time }}</li>
+        <li><strong>Fim:</strong> {{ end_time }}</li>
+    </ul>
+
+    <p>Isso pode ter ocorrido por motivos administrativos, priorização de outras solicitações ou necessidade de manutenção não programada do equipamento. Se tiver dúvidas, por favor, entre em contato com um administrador do sistema.</p>
+    <p>Você pode tentar solicitar a reserva para um outro período ou para uma outra unidade disponível.</p>
+    <p>Atenciosamente,</p>
+    <p>Equipe de Gestão de Equipamentos</p>
+</body>
+</html>
