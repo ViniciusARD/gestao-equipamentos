@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nova Solicitação de Reserva</title>
+</head>
+<body>
+    <p>Olá, Gestor(a),</p>
+    <p>Uma nova solicitação de reserva de equipamento foi registrada no sistema e está aguardando sua aprovação.</p>
+    
+    <h3>Detalhes da Solicitação:</h3>
+    <ul>
+        <li><strong>Solicitante:</strong> {{ requester_name }} ({{ requester_email }})</li>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Início:</strong> {{ start_time }}</li>
+        <li><strong>Fim:</strong> {{ end_time }}</li>
+    </ul>
+
+    <p>Por favor, acesse o painel de "Gerir Reservas" para aprovar ou rejeitar esta solicitação.</p>
+    <p><a href="http://127.0.0.1:5500/frontend/dashboard.html">Acessar o Dashboard</a></p>
+    
+    <p>Atenciosamente,</p>
+    <p>Sistema EquipControl</p>
+</body>
+</html>

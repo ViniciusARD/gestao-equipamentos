@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Solicitação de Reserva Recebida</title>
+</head>
+<body>
+    <p>Olá, {{ username }}!</p>
+    <p>Recebemos a sua solicitação de reserva para o equipamento abaixo. Agora, ela está aguardando a aprovação de um gerente.</p>
+    
+    <h3>Detalhes da Solicitação:</h3>
+    <ul>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Início:</strong> {{ start_time }}</li>
+        <li><strong>Fim:</strong> {{ end_time }}</li>
+        <li><strong>Status:</strong> Pendente</li>
+    </ul>
+
+    <p>Você receberá um novo e-mail assim que o status da sua reserva for atualizado.</p>
+    <p>Atenciosamente,</p>
+    <p>Equipe de Gestão de Equipamentos</p>
+</body>
+</html>

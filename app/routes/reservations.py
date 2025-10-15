@@ -1,6 +1,6 @@
 # app/routes/reservations.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
@@ -13,6 +13,7 @@ from app.models.equipment_type import EquipmentType
 from app.models.user import User
 from app.schemas.reservation import ReservationCreate, ReservationOut
 from app.security import get_current_user, get_current_requester_user
+from app.email_utils import send_reservation_pending_email, send_new_reservation_to_managers_email
 
 router = APIRouter(
     prefix="/reservations",
@@ -22,11 +23,12 @@ router = APIRouter(
 @router.post("/", response_model=ReservationOut, status_code=status.HTTP_201_CREATED)
 def create_reservation(
     reservation: ReservationCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user)
 ):
     """Cria uma nova solicitação de reserva para uma unidade de equipamento."""
-    unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == reservation.unit_id).first()
+    unit = db.query(EquipmentUnit).options(joinedload(EquipmentUnit.equipment_type)).filter(EquipmentUnit.id == reservation.unit_id).first()
     if not unit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unidade de equipamento não encontrada.")
 
@@ -52,12 +54,20 @@ def create_reservation(
         status='pending'
     )
     
-    # Define o status da unidade como pendente para evitar outras reservas
     unit.status = 'pending'
     
     db.add(new_reservation)
     db.commit()
     db.refresh(new_reservation)
+
+    # Adiciona o envio do e-mail de confirmação para o usuário
+    background_tasks.add_task(send_reservation_pending_email, new_reservation)
+
+    # Busca gerentes e admins para notificar
+    managers_and_admins = db.query(User).filter(User.role.in_(['manager', 'admin'])).all()
+    if managers_and_admins:
+        background_tasks.add_task(send_new_reservation_to_managers_email, managers_and_admins, new_reservation)
+
     return new_reservation
 
 @router.get("/my-reservations", response_model=List[ReservationOut])
