@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Background
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.user import User
@@ -21,7 +21,7 @@ from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
 from app.models.activity_log import ActivityLog
 from app.schemas.logs import ActivityLogOut
-from app.email_utils import send_reservation_status_email
+from app.email_utils import send_reservation_status_email, send_reservation_overdue_email, send_reservation_returned_email
 
 router = APIRouter(
     prefix="/admin",
@@ -75,7 +75,10 @@ def list_all_reservations(
         )
 
     if status and status != "all":
-        query = query.filter(Reservation.status == status)
+        if status == "overdue":
+            query = query.filter(Reservation.status == 'approved', Reservation.end_time < datetime.now(timezone.utc))
+        else:
+            query = query.filter(Reservation.status == status)
     
     if start_date:
         query = query.filter(Reservation.end_time >= start_date)
@@ -135,12 +138,37 @@ def update_reservation_status(
                 reservation_id=db_reservation.id
             )
         db.add(history_event)
+        background_tasks.add_task(send_reservation_returned_email, db_reservation)
+
 
     db_reservation.status = update_data.status.value
     db.commit()
     db.refresh(db_reservation)
     
     return db_reservation
+
+@router.post("/reservations/{reservation_id}/notify-overdue", status_code=status.HTTP_200_OK)
+def notify_overdue_reservation(
+    reservation_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    manager_user: User = Depends(get_current_manager_user)
+):
+    """(Gerente) Envia um e-mail de notificação para uma reserva atrasada."""
+    db_reservation = db.query(Reservation).options(
+        joinedload(Reservation.user),
+        joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+    ).filter(Reservation.id == reservation_id).first()
+
+    if not db_reservation:
+        raise HTTPException(status_code=404, detail="Reserva não encontrada.")
+
+    if db_reservation.status != 'approved' or db_reservation.end_time > datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Esta reserva não está atrasada.")
+
+    background_tasks.add_task(send_reservation_overdue_email, db_reservation)
+    
+    return {"message": "Notificação de atraso enviada com sucesso."}
 
 @router.get("/users", response_model=List[UserOut])
 def list_users(

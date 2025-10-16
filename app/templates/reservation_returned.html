@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Equipamento Devolvido</title>
+</head>
+<body>
+    <p>Olá, {{ username }}!</p>
+    <p>Confirmamos o recebimento do equipamento que estava sob sua posse. A reserva foi finalizada com sucesso.</p>
+    
+    <h3>Detalhes da Devolução:</h3>
+    <ul>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Número de Série:</strong> {{ equipment_serial_number }}</li>
+        <li><strong>Data da Devolução:</strong> {{ return_time }}</li>
+    </ul>
+
+    {% if return_notes %}
+    <p><strong>Observações do Gestor:</strong></p>
+    <p><em>{{ return_notes }}</em></p>
+    {% endif %}
+
+    <p>Agradecemos por sua cooperação e por cuidar de nossos equipamentos.</p>
+    <p>Atenciosamente,</p>
+    <p>Equipe de Gestão de Equipamentos</p>
+</body>
+</html>

@@ -3,6 +3,7 @@
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pathlib import Path
 from typing import List
+from datetime import datetime
 from app.config import settings
 from app.models.reservation import Reservation
 from app.models.user import User
@@ -118,3 +119,40 @@ async def send_new_reservation_to_managers_email(managers: List[User], reservati
 
     fm = FastMail(conf)
     await fm.send_message(message, template_name="new_reservation_for_manager.html")
+
+async def send_reservation_overdue_email(reservation: Reservation):
+    """Envia um e-mail de lembrete de devolução para uma reserva atrasada."""
+    template_body = {
+        "username": reservation.user.username,
+        "equipment_name": reservation.equipment_unit.equipment_type.name,
+        "unit_identifier": reservation.equipment_unit.identifier_code or f"ID {reservation.equipment_unit.id}",
+        "equipment_serial_number": reservation.equipment_unit.serial_number,
+        "end_time": reservation.end_time.strftime('%d/%m/%Y às %H:%M'),
+    }
+    message = MessageSchema(
+        subject="[AVISO] Devolução de Equipamento Atrasada",
+        recipients=[reservation.user.email],
+        template_body=template_body,
+        subtype="html"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message, template_name="reservation_overdue.html")
+
+async def send_reservation_returned_email(reservation: Reservation):
+    """Envia um e-mail de confirmação de devolução de equipamento."""
+    template_body = {
+        "username": reservation.user.username,
+        "equipment_name": reservation.equipment_unit.equipment_type.name,
+        "unit_identifier": reservation.equipment_unit.identifier_code or f"ID {reservation.equipment_unit.id}",
+        "equipment_serial_number": reservation.equipment_unit.serial_number,
+        "return_time": datetime.now().strftime('%d/%m/%Y às %H:%M'),
+        "return_notes": reservation.return_notes
+    }
+    message = MessageSchema(
+        subject="Confirmação de Devolução de Equipamento",
+        recipients=[reservation.user.email],
+        template_body=template_body,
+        subtype="html"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message, template_name="reservation_returned.html")

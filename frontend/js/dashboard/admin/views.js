@@ -104,6 +104,7 @@ export async function loadManageReservationsView(token, params = {}) {
         { key: 'all', text: 'Todas' },
         { key: 'pending', text: 'Pendentes' },
         { key: 'approved', text: 'Aprovadas' },
+        { key: 'overdue', text: 'Atrasadas' },
         { key: 'returned', text: 'Devolvidas' },
         { key: 'rejected', text: 'Rejeitadas' }
     ];

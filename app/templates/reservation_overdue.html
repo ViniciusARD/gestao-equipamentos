@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Devolução Atrasada</title>
+</head>
+<body>
+    <p>Olá, {{ username }}.</p>
+    <p>Este é um lembrete de que a sua reserva para o equipamento abaixo está com a devolução <strong>ATRASADA</strong>.</p>
+    
+    <h3>Detalhes da Reserva:</h3>
+    <ul>
+        <li><strong>Equipamento:</strong> {{ equipment_name }}</li>
+        <li><strong>Unidade:</strong> {{ unit_identifier }}</li>
+        <li><strong>Número de Série:</strong> {{ equipment_serial_number }}</li>
+        <li><strong>Prazo Final para Devolução:</strong> {{ end_time }}</li>
+    </ul>
+
+    <p>Por favor, realize a devolução do equipamento o mais rápido possível para evitar penalidades e liberar a unidade para outros usuários.</p>
+    <p>Caso já tenha realizado a devolução, por favor, desconsidere este e-mail.</p>
+    <p>Atenciosamente,</p>
+    <p>Equipe de Gestão de Equipamentos</p>
+</body>
+</html>

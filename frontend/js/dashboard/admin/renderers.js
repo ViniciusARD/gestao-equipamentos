@@ -3,6 +3,8 @@
 import { renderStatusBadge, renderRoleBadge, renderLogLevelBadge } from '../ui.js';
 
 export function renderAdminReservationActions(reservation) {
+    const isOverdue = new Date(reservation.end_time) < new Date() && reservation.status === 'approved';
+
     if (reservation.status === 'pending') {
         return `
             <button class="btn btn-success btn-sm me-1 admin-action-btn" data-reservation-id="${reservation.id}" data-action="approved" title="Aprovar"><i class="bi bi-check-lg"></i></button>
@@ -10,7 +12,11 @@ export function renderAdminReservationActions(reservation) {
         `;
     }
     if (reservation.status === 'approved') {
-        return `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" data-user-identifier="${reservation.user.username}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
+        let buttons = `<button class="btn btn-info btn-sm text-white admin-action-btn" data-reservation-id="${reservation.id}" data-action="returned" data-unit-identifier="${reservation.equipment_unit.identifier_code || `ID ${reservation.equipment_unit.id}`}" data-user-identifier="${reservation.user.username}" title="Marcar como Devolvido"><i class="bi bi-box-arrow-down"></i></button>`;
+        if (isOverdue) {
+            buttons += ` <button class="btn btn-warning btn-sm admin-action-btn" data-reservation-id="${reservation.id}" data-action="notify-overdue" title="Notificar Atraso"><i class="bi bi-envelope-at"></i></button>`;
+        }
+        return buttons;
     }
     return '---';
 }

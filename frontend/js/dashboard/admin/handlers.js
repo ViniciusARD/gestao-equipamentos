@@ -21,15 +21,22 @@ export async function handleUpdateReservationStatus(button, token) {
     
     setButtonLoading(button, true);
     try {
-        const updated = await apiFetch(`${API_URL}/admin/reservations/${reservationId}`, token, { method: 'PATCH', body: { status: action } });
-        const row = document.getElementById(`reservation-row-${updated.id}`);
-        if (row) {
-            row.querySelector('.status-cell').innerHTML = renderStatusBadge(updated.status);
-            row.querySelector('.action-cell').innerHTML = renderAdminReservationActions(updated);
+        let updated;
+        if (action === 'notify-overdue') {
+            await apiFetch(`${API_URL}/admin/reservations/${reservationId}/notify-overdue`, token, { method: 'POST' });
+            showToast('Notificação de atraso enviada!', 'success');
+        } else {
+            updated = await apiFetch(`${API_URL}/admin/reservations/${reservationId}`, token, { method: 'PATCH', body: { status: action } });
+            const row = document.getElementById(`reservation-row-${updated.id}`);
+            if (row) {
+                row.querySelector('.status-cell').innerHTML = renderStatusBadge(updated.status);
+                row.querySelector('.action-cell').innerHTML = renderAdminReservationActions(updated);
+            }
+            showToast('Status da reserva atualizado!', 'success');
         }
-        showToast('Status da reserva atualizado!', 'success');
     } catch (e) {
         showToast(`Erro: ${e.message}`, 'danger');
+    } finally {
         setButtonLoading(button, false);
     }
 }
