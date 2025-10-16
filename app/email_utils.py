@@ -59,6 +59,7 @@ async def send_reservation_status_email(reservation: Reservation):
         "username": reservation.user.username,
         "equipment_name": reservation.equipment_unit.equipment_type.name,
         "unit_identifier": reservation.equipment_unit.identifier_code or f"ID {reservation.equipment_unit.id}",
+        "equipment_serial_number": reservation.equipment_unit.serial_number,
         "start_time": reservation.start_time.strftime('%d/%m/%Y às %H:%M'),
         "end_time": reservation.end_time.strftime('%d/%m/%Y às %H:%M'),
     }
@@ -77,6 +78,7 @@ async def send_reservation_pending_email(reservation: Reservation):
         "username": reservation.user.username,
         "equipment_name": reservation.equipment_unit.equipment_type.name,
         "unit_identifier": reservation.equipment_unit.identifier_code or f"ID {reservation.equipment_unit.id}",
+        "equipment_serial_number": reservation.equipment_unit.serial_number,
         "start_time": reservation.start_time.strftime('%d/%m/%Y às %H:%M'),
         "end_time": reservation.end_time.strftime('%d/%m/%Y às %H:%M'),
     }
@@ -102,6 +104,7 @@ async def send_new_reservation_to_managers_email(managers: List[User], reservati
         "requester_email": reservation.user.email,
         "equipment_name": reservation.equipment_unit.equipment_type.name,
         "unit_identifier": reservation.equipment_unit.identifier_code or f"ID {reservation.equipment_unit.id}",
+        "equipment_serial_number": reservation.equipment_unit.serial_number,
         "start_time": reservation.start_time.strftime('%d/%m/%Y às %H:%M'),
         "end_time": reservation.end_time.strftime('%d/%m/%Y às %H:%M'),
     }
