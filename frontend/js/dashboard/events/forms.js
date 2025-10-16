@@ -1,10 +1,9 @@
 // js/dashboard/events/forms.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { showToast, setButtonLoading, renderStatusBadge, resetUnitForm } from '../ui.js'; // <-- CORREÇÃO AQUI
-import { handleEquipmentTypeSubmit, loadManageSectorsView } from '../admin.js';
+import { showToast, setButtonLoading, renderStatusBadge, resetUnitForm } from '../ui.js'; 
+import { handleEquipmentTypeSubmit, loadManageSectorsView, loadManageUnitsView, populateUnitsTable } from '../admin.js'; // <-- MUDANÇA AQUI
 import { loadMyAccountView, loadMyReservationsView } from '../views.js';
-import { populateUnitsTable } from './actions.js'; // <-- CORREÇÃO AQUI
 import { applyMyReservationsFilter } from './filters.js';
 
 export { handleEquipmentTypeSubmit }; // Re-exporta a função do admin para manter o ponto de acesso
@@ -192,21 +191,28 @@ export async function handleUnitFormSubmit(appState) {
     const messageDiv = document.getElementById('unitFormMessage');
     const typeId = form.unitFormTypeId.value;
     const unitId = form.unitFormUnitId.value;
+    
     const unitData = {
         type_id: parseInt(typeId),
         identifier_code: form.unitIdentifier.value || null,
-        status: form.unitStatus.value
+        status: form.unitStatus.value,
+        quantity: parseInt(form.unitQuantity.value)
     };
+
     setButtonLoading(submitButton, true, 'Salvando...');
     messageDiv.innerHTML = '';
     try {
         const method = unitId ? 'PUT' : 'POST';
         const url = unitId ? `${API_URL}/equipments/units/${unitId}` : `${API_URL}/equipments/units`;
         const bodyData = unitId ? { identifier_code: unitData.identifier_code, status: unitData.status } : unitData;
+        
         await apiFetch(url, token, { method, body: bodyData });
-        showToast(`Unidade ${unitId ? 'atualizada' : 'criada'} com sucesso!`, 'success');
+        
+        showToast(`Unidade(s) ${unitId ? 'atualizada' : 'criada(s)'} com sucesso!`, 'success');
+        
+        // Recarrega a lista de unidades
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
-        populateUnitsTable(type.units);
+        populateUnitsTable(type.units, token);
         resetUnitForm();
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
@@ -214,6 +220,7 @@ export async function handleUnitFormSubmit(appState) {
         setButtonLoading(submitButton, false);
     }
 }
+
 
 export async function handleEnable2FASubmit(appState) {
     const token = appState.token;

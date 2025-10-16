@@ -68,16 +68,39 @@ export function renderUserActions(user, currentUserId) {
 
 export function renderInventoryRow(type) {
     return `
-        <tr id="inventory-row-${type.id}">
-            <td>${type.name}</td>
-            <td>${type.category}</td>
-            <td class="text-center">${type.total_units}</td>
-            <td class="text-center">${type.available_units}</td>
-            <td>
-                <button class="btn btn-info btn-sm me-1 text-white inventory-action-btn" data-action="view-units" data-type-id="${type.id}" data-type-name="${type.name}" title="Gerenciar Unidades"><i class="bi bi-hdd-stack"></i></button>
-                <button class="btn btn-secondary btn-sm me-1 inventory-action-btn" data-action="edit-type" data-type-id="${type.id}" title="Editar Tipo"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-danger btn-sm inventory-action-btn" data-action="delete-type" data-type-id="${type.id}" title="Deletar Tipo"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
+    <div class="col-md-6 col-lg-4 mb-4" id="inventory-row-${type.id}">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">${type.name}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">${type.category}</h6>
+                <p class="card-text small text-muted flex-grow-1">${type.description || 'Sem descrição.'}</p>
+                
+                <div class="d-flex justify-content-around text-center my-3 py-2 border-top border-bottom">
+                    <div>
+                        <h4 class="mb-0">${type.total_units}</h4>
+                        <small class="text-muted">Total</small>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 text-success">${type.available_units}</h4>
+                        <small class="text-muted">Disponíveis</small>
+                    </div>
+                     <div>
+                        <h4 class="mb-0 text-info">${type.reserved_units}</h4>
+                        <small class="text-muted">Reservadas</small>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 text-warning">${type.maintenance_units}</h4>
+                        <small class="text-muted">Manutenção</small>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-primary flex-grow-1 inventory-action-btn" data-action="view-units" data-type-id="${type.id}" title="Gerenciar Unidades"><i class="bi bi-hdd-stack"></i> Unidades (${type.total_units})</button>
+                    <button class="btn btn-secondary inventory-action-btn" data-action="edit-type" data-type-id="${type.id}" title="Editar Tipo"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-danger inventory-action-btn" data-action="delete-type" data-type-id="${type.id}" title="Deletar Tipo"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
     `;
 }

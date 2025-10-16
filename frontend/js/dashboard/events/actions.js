@@ -1,11 +1,12 @@
 // js/dashboard/events/actions.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { showToast, setButtonLoading, openEquipmentTypeModal, openManageUnitsModal, openUnitHistoryModal, openSectorModal, renderStatusBadge } from '../ui.js';
+import { showToast, setButtonLoading, openEquipmentTypeModal, openUnitHistoryModal, openSectorModal } from '../ui.js';
 import { loadMyAccountView } from '../views.js';
+import { loadManageUnitsView } from '../admin/views.js'; // <-- CORREÇÃO DA IMPORTAÇÃO
 
 export async function handleInventoryAction(button, token) {
-    const { action, typeId, typeName } = button.dataset;
+    const { action, typeId } = button.dataset;
 
     if (action === 'create-type') {
         openEquipmentTypeModal();
@@ -13,9 +14,7 @@ export async function handleInventoryAction(button, token) {
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         openEquipmentTypeModal(type);
     } else if (action === 'view-units') {
-        openManageUnitsModal(typeId, typeName);
-        const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
-        populateUnitsTable(type.units);
+        loadManageUnitsView(token, typeId); // Agora esta função será encontrada
     } else if (action === 'delete-type') {
         if (!confirm('Deseja deletar este tipo? Todas as unidades associadas também serão removidas.')) return;
         setButtonLoading(button, true);
@@ -28,26 +27,6 @@ export async function handleInventoryAction(button, token) {
             setButtonLoading(button, false);
         }
     }
-}
-
-export function populateUnitsTable(units) {
-    const tableBody = document.getElementById('unitsTableBody');
-    if (units.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhuma unidade cadastrada.</td></tr>';
-        return;
-    }
-    tableBody.innerHTML = units.map(unit => `
-        <tr id="unit-row-${unit.id}">
-            <td>${unit.id}</td>
-            <td>${unit.identifier_code || 'N/A'}</td>
-            <td>${renderStatusBadge(unit.status)}</td>
-            <td>
-                <button class="btn btn-info btn-sm text-white me-1 unit-action-btn" data-action="history" data-unit-id="${unit.id}" title="Ver Histórico"><i class="bi bi-clock-history"></i></button>
-                <button class="btn btn-secondary btn-sm me-1 unit-action-btn" data-action="edit" data-unit-id="${unit.id}" title="Editar Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-danger btn-sm unit-action-btn" data-action="delete" data-unit-id="${unit.id}" title="Deletar Unidade" ${unit.status === 'reserved' ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
 }
 
 export async function handleUnitAction(button, token) {
@@ -80,7 +59,9 @@ export function prepareUnitFormForEdit(unit) {
     document.getElementById('unitFormUnitId').value = unit.id;
     document.getElementById('unitIdentifier').value = unit.identifier_code !== 'N/A' ? unit.identifier_code : '';
     document.getElementById('unitStatus').value = unit.status;
-    document.getElementById('cancelEditUnitBtn').style.display = 'block';
+    document.getElementById('unitQuantity').value = 1;
+    document.getElementById('unitQuantity').disabled = true;
+    document.getElementById('cancelEditUnitBtn').classList.remove('d-none');
 }
 
 export async function handleGoogleConnect(button, token) {

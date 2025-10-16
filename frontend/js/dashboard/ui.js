@@ -126,7 +126,6 @@ export function openEquipmentTypeModal(type = null) {
     modal.show();
 }
 
-// <<-- NOVA FUNÇÃO PARA ABRIR MODAL DE SETOR -->>
 export function openSectorModal(sector = null) {
     const modal = new bootstrap.Modal(document.getElementById('sectorModal'));
     const form = document.getElementById('sectorForm');
@@ -140,26 +139,15 @@ export function openSectorModal(sector = null) {
     modal.show();
 }
 
-export function openManageUnitsModal(typeId, typeName) {
-    const modal = new bootstrap.Modal(document.getElementById('manageUnitsModal'));
-    const modalLabel = document.getElementById('manageUnitsModalLabel');
-    const tableBody = document.getElementById('unitsTableBody');
-    
-    resetUnitForm();
-    document.getElementById('unitFormTypeId').value = typeId;
-    modalLabel.textContent = `Gerenciar Unidades de: ${typeName}`;
-    tableBody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border"></div></td></tr>';
-
-    modal.show();
-}
-
 export function resetUnitForm() {
     const form = document.getElementById('unitForm');
+    if (!form) return;
     form.reset();
-    document.getElementById('unitFormTitle').textContent = 'Adicionar Nova Unidade';
+    document.getElementById('unitFormTitle').textContent = 'Adicionar Novas Unidades';
     document.getElementById('unitFormUnitId').value = '';
+    document.getElementById('unitQuantity').disabled = false;
     document.getElementById('unitFormMessage').innerHTML = '';
-    document.getElementById('cancelEditUnitBtn').style.display = 'none';
+    document.getElementById('cancelEditUnitBtn').classList.add('d-none');
 }
 
 export async function openUnitHistoryModal(unitId, token) {

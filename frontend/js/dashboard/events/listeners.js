@@ -10,7 +10,9 @@ import {
     loadManageSectorsView,
     handleUpdateReservationStatus,
     handleUserAction,
-    loadAnalyticsDashboardView
+    loadAnalyticsDashboardView,
+    loadManageUnitsView,
+    populateUnitsTable // <-- IMPORTAÇÃO ADICIONADA
 } from '../admin.js';
 
 import {
@@ -98,6 +100,7 @@ async function handleGlobalClick(event, appState) {
         '#disable2faBtn': () => handleDisable2FA(token, appState),
         '#add-sector-btn': () => openSectorModal(),
         '.sector-action-btn': () => handleSectorAction(target, token),
+        '#back-to-inventory-btn': () => loadManageInventoryView(token),
         // Filtros (botões)
         '#applyReservationsFilterBtn': () => applyAdminReservationsFilter(appState),
         '#applyMyReservationsFilterBtn': () => applyMyReservationsFilter(appState),
@@ -110,13 +113,14 @@ async function handleGlobalClick(event, appState) {
 
     for (const selector in clickActions) {
         if (target.matches(selector)) {
+            event.preventDefault();
             clickActions[selector]();
             break; 
         }
     }
     
     // Filtros de grupo de botões (com lógica de classe)
-    if (target.matches('.status-filter-btn, .admin-status-filter-btn, .inventory-availability-filter-btn, .user-role-filter-btn')) {
+    if (target.matches('.status-filter-btn, .admin-status-filter-btn, .inventory-availability-filter-btn, .user-role-filter-btn, .unit-status-filter-btn')) {
         const groupSelector = target.className.split(' ').find(cls => cls.endsWith('-btn'));
         document.querySelectorAll(`.${groupSelector}`).forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
         target.classList.replace('btn-outline-primary', 'btn-primary');
@@ -125,6 +129,14 @@ async function handleGlobalClick(event, appState) {
         if (target.matches('.admin-status-filter-btn')) applyAdminReservationsFilter(appState);
         if (target.matches('.inventory-availability-filter-btn')) applyInventoryFilter(appState);
         if (target.matches('.user-role-filter-btn')) applyUsersFilter(appState);
+
+        // <<-- NOVA LÓGICA -->>
+        if (target.matches('.unit-status-filter-btn')) {
+            const container = document.getElementById('units-view-container');
+            const allUnits = JSON.parse(container.dataset.units);
+            const selectedStatus = target.dataset.status;
+            populateUnitsTable(allUnits, appState.token, selectedStatus);
+        }
     }
 }
 
@@ -147,7 +159,7 @@ async function handleGlobalSubmit(event, appState) {
     event.preventDefault();
     const formActions = {
         'reservationForm': () => handleReservationSubmit(appState),
-        'equipmentTypeForm': () => handleEquipmentTypeSubmit(appState.token), // admin handler já espera o token
+        'equipmentTypeForm': () => handleEquipmentTypeSubmit(appState.token),
         'unitForm': () => handleUnitFormSubmit(appState),
         'updateProfileForm': () => handleUpdateProfile(appState),
         '2faEnableForm': () => handleEnable2FASubmit(appState),
