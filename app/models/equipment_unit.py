@@ -9,7 +9,8 @@ class EquipmentUnit(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     type_id = Column(Integer, ForeignKey('equipment_types.id'), nullable=False)
-    identifier_code = Column(String(50), unique=True, nullable=True)
+    identifier_code = Column(String(50), unique=True, nullable=False)
+    serial_number = Column(String(100), unique=True, nullable=False)
     status = Column(String(20), nullable=False, default='available')
 
     equipment_type = relationship("EquipmentType", back_populates="units")

@@ -194,7 +194,8 @@ export async function handleUnitFormSubmit(appState) {
     
     const unitData = {
         type_id: parseInt(typeId),
-        identifier_code: form.unitIdentifier.value || null,
+        identifier_code: form.unitIdentifier.value,
+        serial_number: form.serialNumber.value,
         status: form.unitStatus.value,
         quantity: parseInt(form.unitQuantity.value)
     };
@@ -204,11 +205,11 @@ export async function handleUnitFormSubmit(appState) {
     try {
         const method = unitId ? 'PUT' : 'POST';
         const url = unitId ? `${API_URL}/equipments/units/${unitId}` : `${API_URL}/equipments/units`;
-        const bodyData = unitId ? { identifier_code: unitData.identifier_code, status: unitData.status } : unitData;
+        const bodyData = unitId ? { identifier_code: unitData.identifier_code, serial_number: unitData.serial_number, status: unitData.status } : unitData;
         
         await apiFetch(url, token, { method, body: bodyData });
         
-        showToast(`Unidade(s) ${unitId ? 'atualizada' : 'criada(s)'} com sucesso!`, 'success');
+        showToast(`Unidade ${unitId ? 'atualizada' : 'criada'} com sucesso!`, 'success');
         
         // Recarrega a lista de unidades
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);

@@ -17,7 +17,7 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
     });
 
     if (filteredUnits.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhuma unidade encontrada com este status.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhuma unidade encontrada com este status.</td></tr>';
         return;
     }
 
@@ -37,7 +37,8 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
         return `
         <tr id="unit-row-${unit.id}" class="${statusRowClass[unit.status] || ''}">
             <td>${unit.id}</td>
-            <td>${unit.identifier_code || 'N/A'}</td>
+            <td>${unit.identifier_code}</td>
+            <td>${unit.serial_number}</td>
             <td>${renderStatusBadge(unit.status)}</td>
             <td><small>${infoCell}</small></td>
             <td>
@@ -295,21 +296,21 @@ export async function loadManageUnitsView(token, typeId) {
                 <div class="col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header">
-                            <h5 id="unitFormTitle" class="mb-0">Adicionar Novas Unidades</h5>
+                            <h5 id="unitFormTitle" class="mb-0">Adicionar Nova Unidade</h5>
                         </div>
                         <div class="card-body">
                             <form id="unitForm">
                                 <input type="hidden" id="unitFormTypeId" value="${type.id}">
                                 <input type="hidden" id="unitFormUnitId">
                                 <div class="mb-3">
-                                    <label for="unitIdentifier" class="form-label">Código de Identificação Base</label>
-                                    <input type="text" class="form-control" id="unitIdentifier" placeholder="Ex: NTBK-DELL">
-                                    <div class="form-text">Opcional. Se usado com quantidade > 1, será sufixado com -1, -2, etc.</div>
+                                    <label for="unitIdentifier" class="form-label">Código de Identificação</label>
+                                    <input type="text" class="form-control" id="unitIdentifier" placeholder="Ex: NTBK-DELL-01" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="unitQuantity" class="form-label">Quantidade</label>
-                                    <input type="number" class="form-control" id="unitQuantity" value="1" min="1">
+                                    <label for="serialNumber" class="form-label">Número de Série</label>
+                                    <input type="text" class="form-control" id="serialNumber" placeholder="Ex: ABC123456XYZ" required>
                                 </div>
+                                <input type="hidden" id="unitQuantity" value="1">
                                 <div class="mb-3">
                                     <label for="unitStatus" class="form-label">Status</label>
                                     <select class="form-select" id="unitStatus" required>
@@ -319,7 +320,7 @@ export async function loadManageUnitsView(token, typeId) {
                                 </div>
                                 <div id="unitFormMessage" class="mt-3"></div>
                                 <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-primary">Salvar Unidade(s)</button>
+                                    <button type="submit" class="btn btn-primary">Salvar Unidade</button>
                                     <button type="button" class="btn btn-outline-secondary d-none" id="cancelEditUnitBtn">Cancelar Edição</button>
                                 </div>
                             </form>
@@ -340,6 +341,7 @@ export async function loadManageUnitsView(token, typeId) {
                                 <tr>
                                     <th>ID</th>
                                     <th>Código</th>
+                                    <th>Nº de Série</th>
                                     <th>Status</th>
                                     <th>Info</th>
                                     <th>Ações</th>

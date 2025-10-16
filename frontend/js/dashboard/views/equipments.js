@@ -86,6 +86,7 @@ export async function fetchAndShowUnits(typeId, token) {
                 <thead>
                     <tr>
                         <th>Código</th>
+                        <th>Nº de Série</th>
                         <th>Status</th>
                         <th>Ação</th>
                     </tr>
@@ -95,11 +96,12 @@ export async function fetchAndShowUnits(typeId, token) {
                         const isAvailable = unit.status === 'available';
                         return `
                             <tr>
-                                <td>${unit.identifier_code || 'N/A'}</td>
+                                <td>${unit.identifier_code}</td>
+                                <td>${unit.serial_number}</td>
                                 <td>${renderStatusBadge(unit.status)}</td>
                                 <td>
                                     ${isAvailable ?
-                                        `<button class="btn btn-primary btn-sm reserve-btn" data-unit-id="${unit.id}" data-unit-identifier="${unit.identifier_code || `ID ${unit.id}`}">Reservar</button>` :
+                                        `<button class="btn btn-primary btn-sm reserve-btn" data-unit-id="${unit.id}" data-unit-identifier="${unit.identifier_code}">Reservar</button>` :
                                         `<button class="btn btn-secondary btn-sm" disabled>Indisponível</button>`
                                     }
                                 </td>

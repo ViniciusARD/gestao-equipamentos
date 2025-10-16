@@ -185,15 +185,32 @@ def create_equipment_unit(
     if not db_type:
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
 
+    # Validação de unicidade
+    existing_unit = db.query(EquipmentUnit).filter(
+        or_(
+            EquipmentUnit.identifier_code == unit_data.identifier_code,
+            EquipmentUnit.serial_number == unit_data.serial_number
+        )
+    ).first()
+    if existing_unit:
+        if existing_unit.identifier_code == unit_data.identifier_code:
+            raise HTTPException(status_code=409, detail=f"O código de identificação '{unit_data.identifier_code}' já está em uso.")
+        if existing_unit.serial_number == unit_data.serial_number:
+            raise HTTPException(status_code=409, detail=f"O número de série '{unit_data.serial_number}' já está em uso.")
+
+    if unit_data.quantity > 1:
+         raise HTTPException(status_code=400, detail="Não é possível criar múltiplas unidades com número de série. Adicione uma de cada vez.")
+
     created_units = []
     for i in range(unit_data.quantity):
         new_unit = EquipmentUnit(
             type_id=unit_data.type_id,
-            identifier_code=f"{unit_data.identifier_code}-{i+1}" if unit_data.quantity > 1 and unit_data.identifier_code else unit_data.identifier_code,
+            identifier_code=unit_data.identifier_code,
+            serial_number=unit_data.serial_number,
             status=unit_data.status
         )
         db.add(new_unit)
-        db.flush() # Usa flush para obter o ID da nova unidade antes do commit
+        db.flush() 
 
         history_event = UnitHistory(
             unit_id=new_unit.id,
@@ -257,6 +274,16 @@ def update_equipment_unit(
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
 
     update_data = unit_update.dict(exclude_unset=True)
+
+    # Checa unicidade antes de atualizar
+    if 'identifier_code' in update_data and update_data['identifier_code'] != db_unit.identifier_code:
+        if db.query(EquipmentUnit).filter(EquipmentUnit.identifier_code == update_data['identifier_code']).first():
+            raise HTTPException(status_code=409, detail=f"O código de identificação '{update_data['identifier_code']}' já está em uso.")
+            
+    if 'serial_number' in update_data and update_data['serial_number'] != db_unit.serial_number:
+        if db.query(EquipmentUnit).filter(EquipmentUnit.serial_number == update_data['serial_number']).first():
+            raise HTTPException(status_code=409, detail=f"O número de série '{update_data['serial_number']}' já está em uso.")
+
     for key, value in update_data.items():
         setattr(db_unit, key, value)
     

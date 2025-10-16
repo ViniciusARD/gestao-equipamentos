@@ -31,15 +31,17 @@ class ReservationBasicOut(BaseModel):
 
 # --- Schemas para EquipmentUnit (Unidade do Equipamento) ---
 class EquipmentUnitBase(BaseModel):
-    identifier_code: Optional[str] = None
+    identifier_code: str
+    serial_number: str
     status: str = 'available'
 
 class EquipmentUnitCreate(EquipmentUnitBase):
     type_id: int
-    quantity: int = Field(1, gt=0, description="Number of units to create.")
+    quantity: int = Field(1, description="Number of units to create. Must be 1 if a serial number is provided.")
 
 class EquipmentUnitUpdate(BaseModel):
     identifier_code: Optional[str] = None
+    serial_number: Optional[str] = None
     status: Optional[str] = None
 
 class EquipmentUnitOut(EquipmentUnitBase):

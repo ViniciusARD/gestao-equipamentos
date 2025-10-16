@@ -35,6 +35,7 @@ export async function handleUnitAction(button, token) {
         const unitToEdit = {
             id: unitId,
             identifier_code: document.querySelector(`#unit-row-${unitId} td:nth-child(2)`).textContent,
+            serial_number: document.querySelector(`#unit-row-${unitId} td:nth-child(3)`).textContent,
             status: document.querySelector(`#unit-row-${unitId} .badge`).textContent.toLowerCase(),
         };
         prepareUnitFormForEdit(unitToEdit);
@@ -57,7 +58,8 @@ export async function handleUnitAction(button, token) {
 export function prepareUnitFormForEdit(unit) {
     document.getElementById('unitFormTitle').textContent = `Editar Unidade ID: ${unit.id}`;
     document.getElementById('unitFormUnitId').value = unit.id;
-    document.getElementById('unitIdentifier').value = unit.identifier_code !== 'N/A' ? unit.identifier_code : '';
+    document.getElementById('unitIdentifier').value = unit.identifier_code;
+    document.getElementById('serialNumber').value = unit.serial_number;
     document.getElementById('unitStatus').value = unit.status;
     document.getElementById('unitQuantity').value = 1;
     document.getElementById('unitQuantity').disabled = true;
