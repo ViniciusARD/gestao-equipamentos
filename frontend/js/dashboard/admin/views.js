@@ -51,6 +51,53 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
     }).join('');
 }
 
+export async function openUserHistoryModal(userId, userName, token) {
+    const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
+    const modalTitle = document.getElementById('userHistoryModalLabel');
+    const modalBody = document.getElementById('userHistoryBody');
+
+    modalTitle.textContent = `Histórico de Reservas: ${userName}`;
+    modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+    modal.show();
+
+    try {
+        const history = await apiFetch(`${API_URL}/admin/users/${userId}/history`, token);
+        if (history.length === 0) {
+            modalBody.innerHTML = '<p class="text-muted">Nenhuma reserva encontrada para este usuário.</p>';
+            return;
+        }
+
+        modalBody.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Equipamento</th>
+                            <th>Unidade (Código)</th>
+                            <th>Status</th>
+                            <th>Período da Reserva</th>
+                            <th>Data da Solicitação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map(res => `
+                            <tr>
+                                <td>${res.equipment_unit.equipment_type.name}</td>
+                                <td>${res.equipment_unit.identifier_code}</td>
+                                <td>${renderStatusBadge(res.status)}</td>
+                                <td>${new Date(res.start_time).toLocaleString('pt-BR')} até ${new Date(res.end_time).toLocaleString('pt-BR')}</td>
+                                <td>${new Date(res.created_at).toLocaleDateString('pt-BR')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (e) {
+        modalBody.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
 
 export async function loadManageReservationsView(token, params = {}) {
     const statusFilters = [

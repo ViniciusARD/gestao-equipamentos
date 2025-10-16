@@ -20,6 +20,11 @@ export function renderUserActions(user, currentUserId) {
     const roles = ['user', 'requester', 'manager', 'admin'];
     const userRoleIndex = roles.indexOf(user.role);
 
+    const historyButton = `
+        <button class="btn btn-info btn-sm text-white user-action-btn" data-user-id="${user.id}" data-user-name="${user.username}" data-action="history" title="Ver Histórico">
+            <i class="bi bi-clock-history"></i>
+        </button>`;
+
     const sectorButton = `
         <button class="btn btn-info btn-sm text-white user-action-btn" data-user-id="${user.id}" data-action="change-sector" title="Alterar Setor">
             <i class="bi bi-tag"></i>
@@ -63,7 +68,7 @@ export function renderUserActions(user, currentUserId) {
             <i class="bi bi-trash"></i>
         </button>`;
 
-    return `<div class="d-flex gap-1">${sectorButton}${promoteButton}${demoteButton}${toggleActiveButton}${deleteButton}</div>`;
+    return `<div class="d-flex gap-1">${historyButton}${sectorButton}${promoteButton}${demoteButton}${toggleActiveButton}${deleteButton}</div>`;
 }
 
 export function renderInventoryRow(type) {

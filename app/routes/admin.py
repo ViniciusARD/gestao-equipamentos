@@ -172,6 +172,27 @@ def list_users(
     users = query.order_by(User.username).offset(skip).limit(limit).all()
     return users
 
+@router.get("/users/{user_id}/history", response_model=List[ReservationOut])
+def get_user_history(
+    user_id: int,
+    db: Session = Depends(get_db),
+    manager_user: User = Depends(get_current_manager_user)
+):
+    """(Gerente) Retorna o histórico de reservas de um usuário específico."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    history = (
+        db.query(Reservation)
+        .filter(Reservation.user_id == user_id)
+        .options(
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        )
+        .order_by(Reservation.start_time.desc())
+        .all()
+    )
+    return history
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user_by_admin(

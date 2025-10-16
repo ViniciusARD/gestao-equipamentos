@@ -12,7 +12,8 @@ import {
     handleUserAction,
     loadAnalyticsDashboardView,
     loadManageUnitsView,
-    populateUnitsTable // <-- IMPORTAÇÃO ADICIONADA
+    populateUnitsTable,
+    openUserHistoryModal
 } from '../admin.js';
 
 import {
@@ -90,7 +91,13 @@ async function handleGlobalClick(event, appState) {
         '.view-units-btn': () => fetchAndShowUnits(target.dataset.typeId, token),
         '.reserve-btn': () => openReserveModal(target.dataset.unitId, target.dataset.unitIdentifier),
         '.admin-action-btn': () => handleUpdateReservationStatus(target, token),
-        '.user-action-btn': () => handleUserAction(target, token, appState.currentUser.id),
+        '.user-action-btn': () => {
+            if (target.dataset.action === 'history') {
+                openUserHistoryModal(target.dataset.userId, target.dataset.userName, token);
+            } else {
+                handleUserAction(target, token, appState.currentUser.id)
+            }
+        },
         '.inventory-action-btn': () => handleInventoryAction(target, token),
         '.unit-action-btn': () => handleUnitAction(target, token),
         '#cancelEditUnitBtn': () => resetUnitForm(),
