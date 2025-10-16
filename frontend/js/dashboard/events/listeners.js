@@ -13,7 +13,8 @@ import {
     loadAnalyticsDashboardView,
     loadManageUnitsView,
     populateUnitsTable,
-    openUserHistoryModal
+    openUserHistoryModal,
+    loadViewUsersView
 } from '../admin.js';
 
 import {
@@ -71,8 +72,9 @@ async function handleGlobalClick(event, appState) {
         'nav-my-reservations': () => loadMyReservationsView(token, {}),
         'nav-my-account': () => loadMyAccountView(appState.currentUser, token),
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
-        'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id, {}),
         'nav-manage-inventory': () => loadManageInventoryView(token),
+        'nav-view-users': () => loadViewUsersView(token, {}),
+        'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id, {}),
         'nav-manage-sectors': () => loadManageSectorsView(token),
         'nav-system-logs': () => loadSystemLogsView(token, {}),
         'nav-analytics-dashboard': () => loadAnalyticsDashboardView(token, {})

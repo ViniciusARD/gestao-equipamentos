@@ -172,6 +172,37 @@ def list_users(
     users = query.order_by(User.username).offset(skip).limit(limit).all()
     return users
 
+@router.get("/users/view", response_model=List[UserOut])
+def view_users_for_manager(
+    db: Session = Depends(get_db), 
+    manager_user: User = Depends(get_current_manager_user),
+    search: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    sector_id: Optional[int] = Query(None),
+    skip: int = 0,
+    limit: int = 100
+):
+    """(Gerente) Lista usuários para visualização."""
+    query = db.query(User).options(joinedload(User.sector))
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.username.ilike(search_term),
+                User.email.ilike(search_term)
+            )
+        )
+    
+    if role and role != "all":
+        query = query.filter(User.role == role)
+
+    if sector_id:
+        query = query.filter(User.sector_id == sector_id)
+
+    users = query.order_by(User.username).offset(skip).limit(limit).all()
+    return users
+
+
 @router.get("/users/{user_id}/history", response_model=List[ReservationOut])
 def get_user_history(
     user_id: int,

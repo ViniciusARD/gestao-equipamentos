@@ -15,6 +15,13 @@ export function renderAdminReservationActions(reservation) {
     return '---';
 }
 
+export function renderManagerUserActions(user) {
+    return `
+        <button class="btn btn-info btn-sm text-white user-action-btn" data-user-id="${user.id}" data-user-name="${user.username}" data-action="history" title="Ver Histórico">
+            <i class="bi bi-clock-history"></i>
+        </button>`;
+}
+
 export function renderUserActions(user, currentUserId) {
     const isCurrentUser = user.id === currentUserId;
     const roles = ['user', 'requester', 'manager', 'admin'];

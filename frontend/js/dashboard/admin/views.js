@@ -2,7 +2,7 @@
 
 import { API_URL, apiFetch } from '../api.js';
 import { renderView, renderLogLevelBadge, renderStatusBadge, renderRoleBadge } from '../ui.js';
-import { renderAdminReservationActions, renderUserActions, renderInventoryRow } from './renderers.js';
+import { renderAdminReservationActions, renderUserActions, renderInventoryRow, renderManagerUserActions } from './renderers.js';
 
 // <<-- FUNÇÃO ATUALIZADA -->>
 export function populateUnitsTable(units, token, statusFilter = 'all') {
@@ -257,6 +257,86 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
+export async function loadViewUsersView(token, params = {}) {
+    const roleFilters = [
+        { key: 'all', text: 'Todos' },
+        { key: 'user', text: 'Usuários' },
+        { key: 'requester', text: 'Solicitantes' },
+        { key: 'manager', text: 'Gerentes' },
+        { key: 'admin', text: 'Admins' }
+    ];
+
+    const sectors = await apiFetch(`${API_URL}/sectors/`, token);
+
+    renderView(`
+        <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Visualizar Usuários</h1>
+        </div>
+        <div class="row mb-3">
+            <div class="col-lg-8">
+                <div class="input-group">
+                    <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <select id="userSectorFilter" class="form-select">
+                    <option value="">Todos os setores</option>
+                    ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="btn-group w-100" role="group">
+                    ${roleFilters.map(filter => `
+                        <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+        <div id="listContainer" class="table-responsive"></div>
+    `);
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
+
+    try {
+        const url = new URL(`${API_URL}/admin/users/view`);
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.role && params.role !== 'all') url.searchParams.append('role', params.role);
+        if (params.sector_id) url.searchParams.append('sector_id', params.sector_id);
+        
+        const users = await apiFetch(url, token);
+        if (users.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">Nenhum usuário encontrado com os filtros aplicados.</p>';
+            return;
+        }
+        container.innerHTML = `
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr><th>ID</th><th>Usuário</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
+                </thead>
+                <tbody>
+                    ${users.map(user => `
+                        <tr id="user-row-${user.id}">
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email}</td>
+                            <td class="sector-cell">${user.sector ? user.sector.name : '<span class="text-muted">N/A</span>'}</td>
+                            <td class="role-cell">${renderRoleBadge(user.role)}</td>
+                            <td class="status-cell">${user.is_active ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>'}</td>
+                            <td class="action-cell">${renderManagerUserActions(user)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
 
 export async function loadManageInventoryView(token, searchTerm = '', categoryFilter = 'all', availabilityFilter = 'all') {
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
