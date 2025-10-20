@@ -28,6 +28,7 @@ class UserOut(UserBase):
     is_active: bool
     is_verified: bool
     otp_enabled: bool
+    has_google_token: bool # <-- ADICIONADO
     sector: Optional[SectorOut] = None
 
     class Config:

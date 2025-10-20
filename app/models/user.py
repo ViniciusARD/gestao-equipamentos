@@ -2,6 +2,7 @@
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property  # <-- ADICIONADO
 from app.database import Base
 
 class User(Base):
@@ -30,3 +31,8 @@ class User(Base):
     sector = relationship("Sector", back_populates="users")
     reservations = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")
     google_token = relationship("GoogleOAuthToken", back_populates="user", cascade="all, delete-orphan", uselist=False)
+
+    # --- NOVA PROPRIEDADE ---
+    @hybrid_property
+    def has_google_token(self):
+        return self.google_token is not None
