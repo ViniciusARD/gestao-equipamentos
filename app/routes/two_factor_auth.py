@@ -12,6 +12,7 @@ from app.schemas.user import (
     TwoFactorSetupResponse, TwoFactorEnableRequest, TwoFactorDisableRequest
 )
 from app.security import get_current_user, verify_password, verify_otp
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/2fa",
@@ -67,6 +68,8 @@ def enable_2fa(
     current_user.otp_enabled = True
     db.commit()
 
+    create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' ativou a autenticação de dois fatores (2FA).")
+
     return {"message": "2FA ativado com sucesso."}
 
 
@@ -91,5 +94,7 @@ def disable_2fa(
     current_user.otp_secret = None
     current_user.otp_enabled = False
     db.commit()
+
+    create_log(db, current_user.id, "WARNING", f"Usuário '{current_user.username}' desativou a autenticação de dois fatores (2FA).")
 
     return {"message": "2FA desativado com sucesso."}

@@ -73,6 +73,7 @@ async def register_user(
                 username=db_user_by_email.username,
                 token=verification_token
             )
+            create_log(db, None, "INFO", f"Tentativa de registro com e-mail não verificado existente: {user.email}. Reenviando e-mail de verificação.")
             return db_user_by_email
 
     if user.sector_id:
@@ -95,6 +96,9 @@ async def register_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    create_log(db, new_user.id, "INFO", f"Novo usuário registrado: '{new_user.username}' ({new_user.email}). Aguardando verificação de e-mail.")
+
 
     verification_token = create_verification_token(email=new_user.email)
     background_tasks.add_task(
@@ -125,6 +129,8 @@ def verify_user_email(token: str, db: Session = Depends(get_db)):
     user.is_verified = True
     user.is_active = True
     db.commit()
+
+    create_log(db, user.id, "INFO", f"Usuário '{user.username}' verificou o e-mail e ativou a conta.")
 
     return {"message": "Sua conta foi verificada com sucesso!"}
 
@@ -270,6 +276,7 @@ async def forgot_password(
     """
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
+        create_log(db, None, "INFO", f"Tentativa de recuperação de senha para e-mail não existente: {request.email}.")
         return {"message": "Se um usuário com este email existir, um link de redefinição será enviado."}
 
     reset_token = create_password_reset_token(email=user.email)
@@ -280,6 +287,8 @@ async def forgot_password(
         username=user.username,
         token=reset_token
     )
+    
+    create_log(db, user.id, "INFO", f"Usuário '{user.username}' solicitou a redefinição de senha.")
     
     return {"message": "Se um usuário com este email existir, um link de redefinição será enviado."}
 
@@ -308,6 +317,8 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 
     user.password_hash = get_password_hash(request.new_password)
     db.commit()
+
+    create_log(db, user.id, "INFO", f"Usuário '{user.username}' redefiniu sua senha com sucesso.")
 
     return {"message": "Sua senha foi redefinida com sucesso."}
 

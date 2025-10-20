@@ -13,6 +13,7 @@ from app.security import get_token
 from app.models.user import User
 from app.models.google_token import GoogleOAuthToken
 from app.config import settings
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/google",
@@ -90,6 +91,8 @@ def google_callback(
     
     db.commit()
     
+    create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' conectou sua conta Google com sucesso.")
+
     # --- ALTERAÇÃO 4: Retornar a renderização do template em vez do JSON ---
     message = "A sua conta Google foi conectada com sucesso! Pode fechar esta aba."
     return templates.TemplateResponse(

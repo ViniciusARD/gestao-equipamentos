@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.sector import Sector
 from app.schemas.user import UserOut, UserUpdate
 from app.security import get_current_user
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/users",
@@ -44,6 +45,9 @@ def update_user_me(
 
     db.commit()
     db.refresh(current_user)
+    
+    create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' atualizou seu próprio perfil.")
+
     return current_user
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
@@ -54,6 +58,12 @@ def delete_user_me(
     """
     Permite que o usuário autenticado delete sua própria conta.
     """
+    user_id_log = current_user.id
+    username_log = current_user.username
+    
     db.delete(current_user)
     db.commit()
+    
+    create_log(db, user_id_log, "WARNING", f"Usuário '{username_log}' (ID: {user_id_log}) deletou a própria conta.")
+
     return

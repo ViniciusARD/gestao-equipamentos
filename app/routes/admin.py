@@ -22,6 +22,7 @@ from app.google_calendar_utils import get_calendar_service, create_calendar_even
 from app.models.activity_log import ActivityLog
 from app.schemas.logs import ActivityLogOut
 from app.email_utils import send_reservation_status_email, send_reservation_overdue_email, send_reservation_returned_email
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/admin",
@@ -33,14 +34,14 @@ def approve_and_create_calendar_event(db: Session, reservation: Reservation):
     google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
     
     if google_token:
-        print(f"BACKGROUND TASK: Token do Google encontrado para {user_to_notify.email}. Criando evento...")
         try:
             service = get_calendar_service(google_token.token_json)
             create_calendar_event(service, reservation)
+            create_log(db, user_to_notify.id, "INFO", f"Evento criado no Google Calendar para a reserva ID {reservation.id}.")
         except Exception as e:
-            print(f"BACKGROUND TASK ERROR: Falha ao criar evento no Google Calendar: {e}")
+            create_log(db, user_to_notify.id, "ERROR", f"Falha ao criar evento no Google Calendar para a reserva ID {reservation.id}: {e}")
     else:
-        print(f"BACKGROUND TASK INFO: Usuário {user_to_notify.email} não conectou a conta Google.")
+        create_log(db, user_to_notify.id, "INFO", f"Usuário '{user_to_notify.username}' não possui conta Google conectada. Evento para reserva ID {reservation.id} não foi criado.")
 
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
@@ -107,6 +108,8 @@ def update_reservation_status(
         raise HTTPException(status_code=404, detail="Reserva não encontrada.")
 
     unit = db_reservation.equipment_unit
+    log_message = f"Gerente '{manager_user.username}' {update_data.status.value} a reserva ID {db_reservation.id} do usuário '{db_reservation.user.username}'."
+
     
     if update_data.status.value == 'approved':
         unit.status = 'reserved'
@@ -128,6 +131,7 @@ def update_reservation_status(
                 user_id=manager_user.id,
                 reservation_id=db_reservation.id
             )
+            log_message += " e enviou a unidade para manutenção."
         else:
             unit.status = 'available'
             history_event = UnitHistory(
@@ -144,6 +148,8 @@ def update_reservation_status(
     db_reservation.status = update_data.status.value
     db.commit()
     db.refresh(db_reservation)
+    
+    create_log(db, manager_user.id, "INFO", log_message)
     
     return db_reservation
 
@@ -168,6 +174,8 @@ def notify_overdue_reservation(
 
     background_tasks.add_task(send_reservation_overdue_email, db_reservation)
     
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.username}' enviou notificação de atraso para a reserva ID {db_reservation.id}.")
+
     return {"message": "Notificação de atraso enviada com sucesso."}
 
 @router.get("/users", response_model=List[UserOut])
@@ -266,9 +274,13 @@ def delete_user_by_admin(
     
     if db_user.id == admin_user.id:
         raise HTTPException(status_code=400, detail="Um administrador não pode deletar a própria conta por esta rota.")
-        
+    
+    user_email_log = db_user.email
     db.delete(db_user)
     db.commit()
+    
+    create_log(db, admin_user.id, "WARNING", f"Admin '{admin_user.username}' deletou o usuário '{user_email_log}' (ID: {user_id}).")
+
     return
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)
@@ -286,10 +298,14 @@ def set_user_role(
     if db_user.id == admin_user.id and role_update.role.value != "admin":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um administrador não pode remover a própria permissão.")
     
+    old_role = db_user.role
     db_user.role = role_update.role.value
     db.commit()
     db.refresh(db_user)
     
+    log_message = f"Admin '{admin_user.username}' alterou a permissão do usuário '{db_user.username}' (ID: {db_user.id}) de '{old_role}' para '{db_user.role}'."
+    create_log(db, admin_user.id, "INFO", log_message)
+
     return db_user
     
 @router.patch("/users/{user_id}/status", response_model=UserOut)
@@ -311,6 +327,10 @@ def set_user_status(
     db.commit()
     db.refresh(db_user)
     
+    action_log = "ativou" if db_user.is_active else "desativou"
+    log_message = f"Admin '{admin_user.username}' {action_log} o usuário '{db_user.username}' (ID: {db_user.id})."
+    create_log(db, admin_user.id, "WARNING", log_message)
+
     return db_user
 
 @router.patch("/users/{user_id}/sector", response_model=UserOut)
@@ -325,14 +345,22 @@ def set_user_sector(
     if not db_user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
+    old_sector_name = db_user.sector.name if db_user.sector else "Nenhum"
+    new_sector_name = "Nenhum"
+
     if sector_update.sector_id is not None:
         sector = db.query(Sector).filter(Sector.id == sector_update.sector_id).first()
         if not sector:
             raise HTTPException(status_code=404, detail="Setor não encontrado.")
+        new_sector_name = sector.name
 
     db_user.sector_id = sector_update.sector_id
     db.commit()
     db.refresh(db_user)
+
+    log_message = f"Gerente '{manager_user.username}' alterou o setor do usuário '{db_user.username}' de '{old_sector_name}' para '{new_sector_name}'."
+    create_log(db, manager_user.id, "INFO", log_message)
+
     return db_user
 
 @router.get("/logs", response_model=List[ActivityLogOut])

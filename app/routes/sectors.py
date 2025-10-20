@@ -9,6 +9,7 @@ from app.models.sector import Sector
 from app.schemas.sector import SectorCreate, SectorOut, SectorUpdate
 from app.security import get_current_admin_user
 from app.models.user import User
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/sectors",
@@ -29,6 +30,9 @@ def create_sector(
     db.add(new_sector)
     db.commit()
     db.refresh(new_sector)
+    
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.username}' criou o setor '{new_sector.name}' (ID: {new_sector.id}).")
+
     return new_sector
 
 @router.get("/", response_model=List[SectorOut])
@@ -55,12 +59,16 @@ def update_sector(
     if not db_sector:
         raise HTTPException(status_code=404, detail="Sector not found.")
     
+    old_name = db_sector.name
     update_data = sector_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_sector, key, value)
         
     db.commit()
     db.refresh(db_sector)
+    
+    create_log(db, admin_user.id, "INFO", f"Admin '{admin_user.username}' atualizou o setor ID {sector_id} de '{old_name}' para '{db_sector.name}'.")
+
     return db_sector
 
 @router.delete("/{sector_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -73,6 +81,11 @@ def delete_sector(
     db_sector = db.query(Sector).filter(Sector.id == sector_id).first()
     if not db_sector:
         raise HTTPException(status_code=404, detail="Sector not found.")
+    
+    sector_name_log = db_sector.name
     db.delete(db_sector)
     db.commit()
+    
+    create_log(db, admin_user.id, "WARNING", f"Admin '{admin_user.username}' deletou o setor '{sector_name_log}' (ID: {sector_id}).")
+
     return

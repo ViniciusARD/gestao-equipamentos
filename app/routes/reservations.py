@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.reservation import ReservationCreate, ReservationOut
 from app.security import get_current_user, get_current_requester_user
 from app.email_utils import send_reservation_pending_email, send_new_reservation_to_managers_email
+from app.logging_utils import create_log
 
 router = APIRouter(
     prefix="/reservations",
@@ -59,6 +60,8 @@ def create_reservation(
     db.add(new_reservation)
     db.commit()
     db.refresh(new_reservation)
+
+    create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' solicitou a reserva da unidade '{unit.identifier_code}' (ID: {unit.id}).")
 
     # Adiciona o envio do e-mail de confirmação para o usuário
     background_tasks.add_task(send_reservation_pending_email, new_reservation)
