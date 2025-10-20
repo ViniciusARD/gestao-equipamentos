@@ -29,3 +29,4 @@ class User(Base):
     # --- RELACIONAMENTOS ---
     sector = relationship("Sector", back_populates="users")
     reservations = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")
+    google_token = relationship("GoogleOAuthToken", back_populates="user", cascade="all, delete-orphan", uselist=False)

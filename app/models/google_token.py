@@ -11,4 +11,4 @@ class GoogleOAuthToken(Base):
     user_id = Column(Integer, ForeignKey('users.id'), unique=True, nullable=False)
     token_json = Column(Text, nullable=False)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="google_token")
