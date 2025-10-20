@@ -3,7 +3,7 @@
 import { API_URL, apiFetch } from '../api.js';
 import { showToast, setButtonLoading, openEquipmentTypeModal, openUnitHistoryModal, openSectorModal } from '../ui.js';
 import { loadMyAccountView } from '../views.js';
-import { loadManageUnitsView } from '../admin/views.js'; // <-- CORREÇÃO DA IMPORTAÇÃO
+import { loadManageUnitsView } from '../admin.js'; // <-- CORREÇÃO REALIZADA AQUI
 
 export async function handleInventoryAction(button, token) {
     const { action, typeId } = button.dataset;

@@ -5,16 +5,16 @@ import { loadDashboardHomeView, loadEquipmentsView, loadMyReservationsView, load
 import {
     loadManageReservationsView,
     loadManageUsersView,
-    loadManageInventoryView,
     loadSystemLogsView,
     loadManageSectorsView,
     handleUpdateReservationStatus,
     handleUserAction,
     loadAnalyticsDashboardView,
-    loadManageUnitsView,
-    populateUnitsTable,
     openUserHistoryModal,
-    loadViewUsersView
+    loadViewUsersView,
+    loadManageInventoryView,
+    loadManageUnitsView,
+    populateUnitsTable
 } from '../admin.js';
 
 import {

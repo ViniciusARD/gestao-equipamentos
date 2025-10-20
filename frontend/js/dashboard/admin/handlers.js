@@ -3,7 +3,7 @@
 import { API_URL, apiFetch } from '../api.js';
 import { showToast, setButtonLoading, renderStatusBadge, renderRoleBadge } from '../ui.js';
 import { renderAdminReservationActions, renderUserActions } from './renderers.js';
-import { loadManageInventoryView } from './views.js';
+import { loadManageInventoryView } from './inventoryViews.js'; // <-- CORREÇÃO FINAL AQUI
 
 export async function handleUpdateReservationStatus(button, token) {
     const { reservationId, action, unitIdentifier, userIdentifier } = button.dataset;
