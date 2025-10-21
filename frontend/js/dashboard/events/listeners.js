@@ -117,7 +117,7 @@ async function handleGlobalClick(event, appState) {
         // Filtros (botões de aplicação)
         '#applyReservationsFilterBtn': () => applyAdminReservationsFilter(appState),
         '#applyMyReservationsFilterBtn': () => applyMyReservationsFilter(appState),
-        '#searchUsersBtn': () => applyUsersFilter(appState),
+        '#applyUsersFilterBtn': () => applyUsersFilter(appState), // <-- CORREÇÃO AQUI
         '#searchViewUsersBtn': () => applyViewUsersFilter(appState),
         '#searchInventoryBtn': () => applyInventoryFilter(appState),
         '#searchEquipmentsBtn': () => applyEquipmentsFilter(appState),
@@ -135,15 +135,16 @@ async function handleGlobalClick(event, appState) {
     }
     
     // Filtros de grupo de botões (com lógica de classe)
-    if (target.matches('.status-filter-btn, .admin-status-filter-btn, .inventory-availability-filter-btn, .user-role-filter-btn, .view-user-role-filter-btn, .unit-status-filter-btn')) {
+    const btnGroupFilters = '.status-filter-btn, .admin-status-filter-btn, .user-role-filter-btn, .user-status-filter-btn, .view-user-role-filter-btn, .unit-status-filter-btn';
+    if (target.matches(btnGroupFilters)) {
         const groupSelector = target.className.split(' ').find(cls => cls.endsWith('-btn'));
         document.querySelectorAll(`.${groupSelector}`).forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
         target.classList.replace('btn-outline-primary', 'btn-primary');
 
+        // Dispara a função de filtro apropriada
         if (target.matches('.status-filter-btn')) applyMyReservationsFilter(appState);
         if (target.matches('.admin-status-filter-btn')) applyAdminReservationsFilter(appState);
-        if (target.matches('.inventory-availability-filter-btn')) applyInventoryFilter(appState);
-        if (target.matches('.user-role-filter-btn')) applyUsersFilter(appState);
+        if (target.matches('.user-role-filter-btn, .user-status-filter-btn')) applyUsersFilter(appState); // <-- CORREÇÃO AQUI
         if (target.matches('.view-user-role-filter-btn')) applyViewUsersFilter(appState);
 
         if (target.matches('.unit-status-filter-btn')) {
@@ -154,7 +155,7 @@ async function handleGlobalClick(event, appState) {
         }
     }
     
-    // **CORREÇÃO: Handler de Paginação**
+    // Handler de Paginação
     if (target.matches('.pagination-btn')) {
         event.preventDefault();
         const page = parseInt(target.dataset.page);
@@ -168,7 +169,7 @@ async function handleGlobalClick(event, appState) {
             'logs': () => applyLogsFilter(appState, page),
             'sectors': () => applySectorsFilter(appState, page),
             'inventory': () => applyInventoryFilter(appState, page),
-            'equipments': () => applyEquipmentsFilter(appState, page) // <-- ADICIONADO
+            'equipments': () => applyEquipmentsFilter(appState, page)
         };
         
         if (paginationActions[actionPrefix]) {
@@ -181,17 +182,21 @@ function handleGlobalChange(event, appState) {
     const target = event.target;
     if (!target) return;
 
-    if (target.matches('#equipmentsCategoryFilter')) {
-        applyEquipmentsFilter(appState);
-    }
-    if (target.matches('#inventoryCategoryFilter')) {
-        applyInventoryFilter(appState);
-    }
-    if (target.matches('#userSectorFilter')) {
-        applyUsersFilter(appState);
-    }
-    if (target.matches('#viewUserSectorFilter')) {
-        applyViewUsersFilter(appState);
+    // Esses filtros são acionados na mudança de valor do select
+    const changeActions = {
+        '#equipmentsCategoryFilter': () => applyEquipmentsFilter(appState),
+        '#inventoryCategoryFilter': () => applyInventoryFilter(appState),
+        '#userSectorFilter': () => applyUsersFilter(appState),
+        '#userSortBy': () => applyUsersFilter(appState),
+        '#userSortDir': () => applyUsersFilter(appState),
+        '#viewUserSectorFilter': () => applyViewUsersFilter(appState)
+    };
+
+    for (const selector in changeActions) {
+        if (target.matches(selector)) {
+            changeActions[selector]();
+            break;
+        }
     }
 }
 

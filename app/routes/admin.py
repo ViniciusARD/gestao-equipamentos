@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, desc, asc
 from typing import List, Optional
 from datetime import datetime, timezone
 import asyncio
@@ -247,10 +247,14 @@ def list_users(
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(15, ge=1, le=1000)
+    size: int = Query(15, ge=1, le=1000),
+    status: Optional[str] = Query(None, description="Filter by user status: 'active' or 'inactive'"),
+    sort_by: Optional[str] = Query('id', description="Sort by: 'id', 'username', 'email', 'sector', 'role', 'status'"),
+    sort_dir: Optional[str] = Query('asc', description="Sort direction: 'asc' or 'desc'")
 ):
-    """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
-    query = db.query(User).options(joinedload(User.sector))
+    """(Admin) Lista todos os usuários cadastrados, com busca, filtros e ordenação."""
+    query = db.query(User).outerjoin(User.sector) # Use outerjoin to include users without a sector
+
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -266,8 +270,27 @@ def list_users(
     if sector_id:
         query = query.filter(User.sector_id == sector_id)
 
+    if status and status != "all":
+        query = query.filter(User.is_active == (status == 'active'))
+
+    # Sorting logic
+    sort_column_map = {
+        'id': User.id,
+        'username': User.username,
+        'email': User.email,
+        'sector': Sector.name,
+        'role': User.role,
+        'status': User.is_active
+    }
+    sort_column = sort_column_map.get(sort_by, User.id)
+    if sort_dir == 'desc':
+        query = query.order_by(desc(sort_column))
+    else:
+        query = query.order_by(asc(sort_column))
+
+
     total = query.count()
-    users = query.order_by(User.username).offset((page - 1) * size).limit(size).all()
+    users = query.options(joinedload(User.sector)).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": users,

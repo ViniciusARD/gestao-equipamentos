@@ -45,10 +45,14 @@ export function applyMyReservationsFilter(appState, page = 1) {
 export function applyUsersFilter(appState, page = 1) {
     const token = appState.token;
     const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
+    const activeStatusBtn = document.querySelector('.user-status-filter-btn.btn-primary');
     const params = {
         search: document.getElementById('usersSearchInput').value.trim(),
         role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
+        status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         sector_id: document.getElementById('userSectorFilter').value,
+        sort_by: document.getElementById('userSortBy').value,
+        sort_dir: document.getElementById('userSortDir').value,
         page: page
     };
     loadManageUsersView(token, appState.currentUser.id, params);
