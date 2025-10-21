@@ -14,7 +14,7 @@ import {
     loadMyReservationsView
 } from '../views.js';
 
-// As funções precisam do appState, que será passado como argumento.
+// As funÃ§Ãµes precisam do appState, que serÃ¡ passado como argumento.
 export function applyAdminReservationsFilter(appState) {
     const token = appState.token;
     const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
@@ -83,6 +83,9 @@ export function applyAnalyticsFilter(appState) {
     const params = {
         start_date: document.getElementById('analyticsStartDate').value,
         end_date: document.getElementById('analyticsEndDate').value,
+        sector_id: document.getElementById('analyticsSectorFilter').value,
+        equipment_type_id: document.getElementById('analyticsEquipmentTypeFilter').value,
+        user_id: document.getElementById('analyticsUserFilter').value,
     };
     loadAnalyticsDashboardView(token, params);
 }
