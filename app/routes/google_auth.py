@@ -1,7 +1,7 @@
 # app/routes/google_auth.py
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from google_auth_oauthlib.flow import Flow
@@ -9,7 +9,7 @@ from jose import jwt, JWTError
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.security import get_token
+from app.security import get_token, get_current_user
 from app.models.user import User
 from app.models.google_token import GoogleOAuthToken
 from app.config import settings
@@ -20,13 +20,11 @@ router = APIRouter(
     tags=["Google Authentication"]
 )
 
-# --- ALTERAÇÃO 1: Inicializar o motor de templates ---
 templates = Jinja2Templates(directory="app/templates")
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 REDIRECT_URI = "http://127.0.0.1:8000/google/callback"
 
-# Schema para a resposta da rota /login
 class GoogleLoginResponse(BaseModel):
     authorization_url: str
 
@@ -41,17 +39,19 @@ def google_login(token: str = Depends(get_token)):
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI
     )
+    # --- MODIFICAÇÃO PRINCIPAL: Adicionado prompt='consent' ---
+    # Isso força o Google a sempre pedir o consentimento e emitir um novo refresh token,
+    # resolvendo o bug de reconexão.
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
+        prompt='consent',  # <-- CORREÇÃO APLICADA AQUI
         state=token
     )
     return {"authorization_url": authorization_url}
 
-# --- ALTERAÇÃO 2: Definir o response_class como HTMLResponse ---
 @router.get("/callback", response_class=HTMLResponse)
 def google_callback(
-    # --- ALTERAÇÃO 3: Adicionar o parâmetro "request" ---
     request: Request,
     code: str = Query(...),
     state: str = Query(...),
@@ -93,9 +93,28 @@ def google_callback(
     
     create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' conectou sua conta Google com sucesso.")
 
-    # --- ALTERAÇÃO 4: Retornar a renderização do template em vez do JSON ---
     message = "A sua conta Google foi conectada com sucesso! Pode fechar esta aba."
     return templates.TemplateResponse(
         "google_callback_success.html", 
         {"request": request, "message": message}
     )
+
+@router.delete("/disconnect", status_code=status.HTTP_200_OK)
+def google_disconnect(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Desconecta a conta Google do usuário, removendo o token de autorização.
+    """
+    db_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == current_user.id).first()
+    
+    if not db_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhuma conta Google conectada para este usuário.")
+    
+    db.delete(db_token)
+    db.commit()
+    
+    create_log(db, current_user.id, "WARNING", f"Usuário '{current_user.username}' desconectou sua conta Google.")
+    
+    return {"message": "Sua conta Google foi desconectada com sucesso."}

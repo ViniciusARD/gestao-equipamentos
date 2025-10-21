@@ -43,6 +43,7 @@ import {
     handleInventoryAction,
     handleUnitAction,
     handleGoogleConnect,
+    handleGoogleDisconnect,
     handleDeleteAccount,
     handleEnable2FA,
     handleDisable2FA,
@@ -104,6 +105,7 @@ async function handleGlobalClick(event, appState) {
         '.unit-action-btn': () => handleUnitAction(target, token),
         '#cancelEditUnitBtn': () => resetUnitForm(),
         '#connectGoogleBtn': () => handleGoogleConnect(target, token),
+        '#disconnectGoogleBtn': () => handleGoogleDisconnect(target, token, appState),
         '#deleteAccountBtn': () => handleDeleteAccount(target, token, appState),
         '#enable2faBtn': () => handleEnable2FA(token),
         '#disable2faBtn': () => handleDisable2FA(token, appState),
@@ -139,7 +141,6 @@ async function handleGlobalClick(event, appState) {
         if (target.matches('.inventory-availability-filter-btn')) applyInventoryFilter(appState);
         if (target.matches('.user-role-filter-btn')) applyUsersFilter(appState);
 
-        // <<-- NOVA LÓGICA -->>
         if (target.matches('.unit-status-filter-btn')) {
             const container = document.getElementById('units-view-container');
             const allUnits = JSON.parse(container.dataset.units);

@@ -8,11 +8,12 @@ export async function loadMyAccountView(currentUser, token) {
         ? `<button class="btn btn-outline-warning" id="disable2faBtn"><i class="bi bi-shield-slash me-2"></i>Desativar 2FA</button>`
         : `<button class="btn btn-primary" id="enable2faBtn"><i class="bi bi-shield-check me-2"></i>Ativar 2FA</button>`;
 
-    // --- LÓGICA DE INDICAÇÃO VISUAL ADICIONADA ---
+    // --- LÓGICA DE INDICAÇÃO VISUAL ATUALIZADA ---
     const googleIntegrationContent = currentUser.has_google_token
         ? `
-            <p class="card-text text-success"><i class="bi bi-check-circle-fill me-2"></i>Sua conta Google está conectada. As reservas aprovadas serão adicionadas à sua agenda.</p>
-            <button class="btn btn-success" disabled><i class="bi bi-google me-2"></i>Conectado</button>
+            <p class="card-text text-success"><i class="bi bi-check-circle-fill me-2"></i>Sua conta Google está conectada.</p>
+            <p class="card-text"><small>As reservas aprovadas serão adicionadas à sua agenda.</small></p>
+            <button class="btn btn-outline-danger" id="disconnectGoogleBtn"><i class="bi bi-google me-2"></i>Desconectar</button>
         `
         : `
             <p class="card-text">Conecte sua conta Google para que suas reservas aprovadas sejam adicionadas automaticamente ao seu calendário.</p>

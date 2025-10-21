@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
 from datetime import datetime, timezone
+import asyncio
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models.reservation import Reservation
 from app.models.equipment_unit import EquipmentUnit
 from app.models.equipment_type import EquipmentType
@@ -20,6 +21,38 @@ router = APIRouter(
     prefix="/reservations",
     tags=["Reservations"]
 )
+
+# --- TAREFA EM SEGUNDO PLANO CORRIGIDA ---
+
+async def task_send_creation_emails(reservation_id: int):
+    """
+    (ASYNC) Envia e-mail para o usuário e para os gerentes sobre uma nova reserva.
+    Cria sua própria sessão de banco de dados.
+    """
+    db = SessionLocal()
+    try:
+        # Busca a reserva com os dados necessários
+        reservation = db.query(Reservation).options(
+            joinedload(Reservation.user),
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        ).filter(Reservation.id == reservation_id).first()
+
+        if not reservation:
+            return
+
+        # Busca os gerentes
+        managers_and_admins = db.query(User).filter(User.role.in_(['manager', 'admin'])).all()
+
+        # Dispara as duas tarefas de e-mail em paralelo
+        await asyncio.gather(
+            send_reservation_pending_email(reservation),
+            send_new_reservation_to_managers_email(managers_and_admins, reservation)
+        )
+    finally:
+        db.close()
+
+
+# --- ROTAS ---
 
 @router.post("/", response_model=ReservationOut, status_code=status.HTTP_201_CREATED)
 def create_reservation(
@@ -63,13 +96,8 @@ def create_reservation(
 
     create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' solicitou a reserva da unidade '{unit.identifier_code}' (ID: {unit.id}).")
 
-    # Adiciona o envio do e-mail de confirmação para o usuário
-    background_tasks.add_task(send_reservation_pending_email, new_reservation)
-
-    # Busca gerentes e admins para notificar
-    managers_and_admins = db.query(User).filter(User.role.in_(['manager', 'admin'])).all()
-    if managers_and_admins:
-        background_tasks.add_task(send_new_reservation_to_managers_email, managers_and_admins, new_reservation)
+    # Adiciona a tarefa em segundo plano que irá cuidar de TODOS os e-mails
+    background_tasks.add_task(task_send_creation_emails, new_reservation.id)
 
     return new_reservation
 

@@ -1,12 +1,13 @@
 # app/routes/admin.py
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
-from sqlalchemy.orm import Session, joinedload, contains_eager
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
 from datetime import datetime, timezone
+import asyncio
 
-from app.database import get_db
+from app.database import get_db, SessionLocal 
 from app.models.user import User
 from app.models.sector import Sector
 from app.models.reservation import Reservation
@@ -29,19 +30,69 @@ router = APIRouter(
     tags=["Admin Management"]
 )
 
-def approve_and_create_calendar_event(db: Session, reservation: Reservation):
-    user_to_notify = reservation.user
-    google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
-    
-    if google_token:
-        try:
-            service = get_calendar_service(google_token.token_json)
-            create_calendar_event(service, reservation)
-            create_log(db, user_to_notify.id, "INFO", f"Evento criado no Google Calendar para a reserva ID {reservation.id}.")
-        except Exception as e:
-            create_log(db, user_to_notify.id, "ERROR", f"Falha ao criar evento no Google Calendar para a reserva ID {reservation.id}: {e}")
-    else:
-        create_log(db, user_to_notify.id, "INFO", f"Usuário '{user_to_notify.username}' não possui conta Google conectada. Evento para reserva ID {reservation.id} não foi criado.")
+# --- TAREFAS EM SEGUNDO PLANO CORRIGIDAS ---
+
+def approve_and_create_calendar_event(reservation_id: int):
+    """
+    (SYNC) Tarefa em segundo plano para criar evento no Google Calendar.
+    Cria sua própria sessão de banco de dados.
+    """
+    db = SessionLocal()
+    try:
+        reservation = db.query(Reservation).options(
+            joinedload(Reservation.user),
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        ).filter(Reservation.id == reservation_id).first()
+
+        if not reservation:
+            return
+
+        user_to_notify = reservation.user
+        google_token = db.query(GoogleOAuthToken).filter(GoogleOAuthToken.user_id == user_to_notify.id).first()
+        
+        if google_token:
+            # --- NOVO LOG ---
+            create_log(db, user_to_notify.id, "INFO", f"Tentando criar evento no Google Calendar para a reserva ID {reservation.id}.")
+            try:
+                service = get_calendar_service(google_token.token_json)
+                create_calendar_event(service, reservation)
+                # Log de sucesso já existe e está correto.
+                create_log(db, user_to_notify.id, "INFO", f"Evento criado com sucesso no Google Calendar para a reserva ID {reservation.id}.")
+            except Exception as e:
+                # Log de erro já existe e está correto.
+                create_log(db, user_to_notify.id, "ERROR", f"Falha ao criar evento no Google Calendar para a reserva ID {reservation.id}: {e}")
+        else:
+            # Log de "não conectado" já existe e está correto.
+            create_log(db, user_to_notify.id, "INFO", f"Usuário '{user_to_notify.username}' não possui conta Google conectada. Evento para reserva ID {reservation.id} não foi criado.")
+    finally:
+        db.close()
+
+async def task_send_reservation_email(reservation_id: int, email_type: str):
+    """
+    (ASYNC) Tarefa em segundo plano para enviar e-mails de status, devolução ou atraso.
+    Cria sua própria sessão de banco de dados.
+    """
+    db = SessionLocal()
+    try:
+        reservation = db.query(Reservation).options(
+            joinedload(Reservation.user),
+            joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
+        ).filter(Reservation.id == reservation_id).first()
+        
+        if not reservation:
+            return
+
+        if email_type == 'status':
+            await send_reservation_status_email(reservation)
+        elif email_type == 'returned':
+            await send_reservation_returned_email(reservation)
+        elif email_type == 'overdue':
+            await send_reservation_overdue_email(reservation)
+    finally:
+        db.close()
+
+
+# --- ROTAS ---
 
 @router.get("/reservations", response_model=List[ReservationOut])
 def list_all_reservations(
@@ -109,16 +160,14 @@ def update_reservation_status(
 
     unit = db_reservation.equipment_unit
     log_message = f"Gerente '{manager_user.username}' {update_data.status.value} a reserva ID {db_reservation.id} do usuário '{db_reservation.user.username}'."
-
     
-    if update_data.status.value == 'approved':
-        unit.status = 'reserved'
-        background_tasks.add_task(approve_and_create_calendar_event, db, db_reservation)
-        background_tasks.add_task(send_reservation_status_email, db_reservation)
-
-    elif update_data.status.value == 'rejected':
-        unit.status = 'available'
-        background_tasks.add_task(send_reservation_status_email, db_reservation)
+    if update_data.status.value in ['approved', 'rejected']:
+        if update_data.status.value == 'approved':
+            unit.status = 'reserved'
+            background_tasks.add_task(approve_and_create_calendar_event, db_reservation.id)
+        else: # rejected
+            unit.status = 'available'
+        background_tasks.add_task(task_send_reservation_email, db_reservation.id, 'status')
 
     elif update_data.status.value == 'returned':
         db_reservation.return_notes = update_data.return_notes
@@ -142,7 +191,7 @@ def update_reservation_status(
                 reservation_id=db_reservation.id
             )
         db.add(history_event)
-        background_tasks.add_task(send_reservation_returned_email, db_reservation)
+        background_tasks.add_task(task_send_reservation_email, db_reservation.id, 'returned')
 
 
     db_reservation.status = update_data.status.value
@@ -172,7 +221,7 @@ def notify_overdue_reservation(
     if db_reservation.status != 'approved' or db_reservation.end_time > datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Esta reserva não está atrasada.")
 
-    background_tasks.add_task(send_reservation_overdue_email, db_reservation)
+    background_tasks.add_task(task_send_reservation_email, db_reservation.id, 'overdue')
     
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.username}' enviou notificação de atraso para a reserva ID {db_reservation.id}.")
 

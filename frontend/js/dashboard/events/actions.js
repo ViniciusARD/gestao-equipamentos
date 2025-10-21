@@ -3,7 +3,7 @@
 import { API_URL, apiFetch } from '../api.js';
 import { showToast, setButtonLoading, openEquipmentTypeModal, openUnitHistoryModal, openSectorModal } from '../ui.js';
 import { loadMyAccountView } from '../views.js';
-import { loadManageUnitsView } from '../admin.js'; // <-- CORREÇÃO REALIZADA AQUI
+import { loadManageUnitsView } from '../admin.js';
 
 export async function handleInventoryAction(button, token) {
     const { action, typeId } = button.dataset;
@@ -14,7 +14,7 @@ export async function handleInventoryAction(button, token) {
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         openEquipmentTypeModal(type);
     } else if (action === 'view-units') {
-        loadManageUnitsView(token, typeId); // Agora esta função será encontrada
+        loadManageUnitsView(token, typeId);
     } else if (action === 'delete-type') {
         if (!confirm('Deseja deletar este tipo? Todas as unidades associadas também serão removidas.')) return;
         setButtonLoading(button, true);
@@ -74,6 +74,23 @@ export async function handleGoogleConnect(button, token) {
         showToast('Abra a nova aba para autorizar o acesso à sua conta Google.', 'info');
     } catch (e) {
         showToast(`Erro ao iniciar conexão: ${e.message}`, 'danger');
+    } finally {
+        setButtonLoading(button, false);
+    }
+}
+
+export async function handleGoogleDisconnect(button, token, appState) {
+    if (!confirm('Tem certeza que deseja desconectar sua conta Google?')) {
+        return;
+    }
+    setButtonLoading(button, true);
+    try {
+        await apiFetch(`${API_URL}/google/disconnect`, token, { method: 'DELETE' });
+        showToast('Conta Google desconectada com sucesso!', 'success');
+        appState.currentUser.has_google_token = false;
+        loadMyAccountView(appState.currentUser, token);
+    } catch (e) {
+        showToast(`Erro ao desconectar: ${e.message}`, 'danger');
     } finally {
         setButtonLoading(button, false);
     }
