@@ -308,11 +308,15 @@ def view_users_for_manager(
     search: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query('id'),
+    sort_dir: Optional[str] = Query('asc'),
     page: int = Query(1, ge=1),
     size: int = Query(15, ge=1, le=1000)
 ):
-    """(Gerente) Lista usuários para visualização."""
-    query = db.query(User).options(joinedload(User.sector))
+    """(Gerente) Lista usuários para visualização, com filtros e ordenação."""
+    query = db.query(User).outerjoin(User.sector)
+
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -327,9 +331,27 @@ def view_users_for_manager(
 
     if sector_id:
         query = query.filter(User.sector_id == sector_id)
+        
+    if status and status != "all":
+        query = query.filter(User.is_active == (status == 'active'))
+
+    # Sorting logic
+    sort_column_map = {
+        'id': User.id,
+        'username': User.username,
+        'email': User.email,
+        'sector': Sector.name,
+        'role': User.role,
+        'status': User.is_active
+    }
+    sort_column = sort_column_map.get(sort_by, User.id)
+    if sort_dir == 'desc':
+        query = query.order_by(desc(sort_column))
+    else:
+        query = query.order_by(asc(sort_column))
 
     total = query.count()
-    users = query.order_by(User.username).offset((page - 1) * size).limit(size).all()
+    users = query.options(joinedload(User.sector)).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": users,

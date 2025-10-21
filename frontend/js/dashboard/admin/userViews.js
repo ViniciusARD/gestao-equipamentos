@@ -273,32 +273,72 @@ export async function loadViewUsersView(token, params = {}) {
         { key: 'admin', text: 'Admins' }
     ];
 
+    const statusFilters = [
+        { key: 'all', text: 'Todos' },
+        { key: 'active', text: 'Ativos' },
+        { key: 'inactive', text: 'Inativos' }
+    ];
+    
+    const sortOptions = [
+        { key: 'id', text: 'ID' },
+        { key: 'username', text: 'Usuário' },
+        { key: 'email', text: 'Email' },
+        { key: 'sector', text: 'Setor' },
+        { key: 'role', text: 'Permissão' },
+        { key: 'status', text: 'Status' }
+    ];
+
     const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Visualizar Usuários</h1>
         </div>
-        <div class="row mb-3">
-            <div class="col-lg-8">
-                <div class="input-group">
-                    <input type="search" id="viewUsersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
-                    <button class="btn btn-outline-secondary" type="button" id="searchViewUsersBtn"><i class="bi bi-search"></i></button>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <select id="viewUserSectorFilter" class="form-select">
-                    <option value="">Todos os setores</option>
-                    ${sectorsData.items.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
-                </select>
-            </div>
-        </div>
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="btn-group w-100" role="group">
-                    ${roleFilters.map(filter => `
-                        <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} view-user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
-                    `).join('')}
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <input type="search" id="viewUsersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
+                    </div>
+                    <div class="col-lg-6 col-md-12">
+                        <label class="form-label small">Permissão</label>
+                        <div class="btn-group w-100" role="group">
+                            ${roleFilters.map(filter => `
+                                <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} view-user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="col-lg-6 col-md-12">
+                        <label class="form-label small">Status</label>
+                        <div class="btn-group w-100" role="group">
+                            ${statusFilters.map(filter => `
+                                <button type="button" class="btn ${(params.status || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} view-user-status-filter-btn" data-status="${filter.key}">${filter.text}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                     <div class="col-lg-4 col-md-6">
+                        <label for="viewUserSectorFilter" class="form-label small">Setor</label>
+                        <select id="viewUserSectorFilter" class="form-select">
+                            <option value="">Todos os setores</option>
+                            ${sectorsData.items.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <label for="viewUserSortBy" class="form-label small">Ordenar por</label>
+                        <select id="viewUserSortBy" class="form-select">
+                             ${sortOptions.map(opt => `<option value="${opt.key}" ${params.sort_by === opt.key ? 'selected' : ''}>${opt.text}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label for="viewUserSortDir" class="form-label small">Direção</label>
+                        <select id="viewUserSortDir" class="form-select">
+                            <option value="asc" ${params.sort_dir === 'asc' ? 'selected' : ''}>Ascendente</option>
+                            <option value="desc" ${params.sort_dir === 'desc' ? 'selected' : ''}>Descendente</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" id="applyViewUsersFilterBtn"><i class="bi bi-funnel-fill"></i> Aplicar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -314,6 +354,9 @@ export async function loadViewUsersView(token, params = {}) {
         if (params.search) url.searchParams.append('search', params.search);
         if (params.role && params.role !== 'all') url.searchParams.append('role', params.role);
         if (params.sector_id) url.searchParams.append('sector_id', params.sector_id);
+        if (params.status && params.status !== 'all') url.searchParams.append('status', params.status);
+        if (params.sort_by) url.searchParams.append('sort_by', params.sort_by);
+        if (params.sort_dir) url.searchParams.append('sort_dir', params.sort_dir);
         
         const data = await apiFetch(url, token);
         if (data.items.length === 0) {

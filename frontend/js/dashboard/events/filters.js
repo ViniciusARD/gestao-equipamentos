@@ -61,10 +61,14 @@ export function applyUsersFilter(appState, page = 1) {
 export function applyViewUsersFilter(appState, page = 1) {
     const token = appState.token;
     const activeRoleBtn = document.querySelector('.view-user-role-filter-btn.btn-primary');
+    const activeStatusBtn = document.querySelector('.view-user-status-filter-btn.btn-primary');
     const params = {
         search: document.getElementById('viewUsersSearchInput').value.trim(),
         role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
+        status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         sector_id: document.getElementById('viewUserSectorFilter').value,
+        sort_by: document.getElementById('viewUserSortBy').value,
+        sort_dir: document.getElementById('viewUserSortDir').value,
         page: page
     };
     loadViewUsersView(token, params);

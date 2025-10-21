@@ -117,8 +117,8 @@ async function handleGlobalClick(event, appState) {
         // Filtros (botões de aplicação)
         '#applyReservationsFilterBtn': () => applyAdminReservationsFilter(appState),
         '#applyMyReservationsFilterBtn': () => applyMyReservationsFilter(appState),
-        '#applyUsersFilterBtn': () => applyUsersFilter(appState), // <-- CORREÇÃO AQUI
-        '#searchViewUsersBtn': () => applyViewUsersFilter(appState),
+        '#applyUsersFilterBtn': () => applyUsersFilter(appState),
+        '#applyViewUsersFilterBtn': () => applyViewUsersFilter(appState), // <-- CORREÇÃO AQUI
         '#searchInventoryBtn': () => applyInventoryFilter(appState),
         '#searchEquipmentsBtn': () => applyEquipmentsFilter(appState),
         '#searchSectorsBtn': () => applySectorsFilter(appState),
@@ -135,7 +135,7 @@ async function handleGlobalClick(event, appState) {
     }
     
     // Filtros de grupo de botões (com lógica de classe)
-    const btnGroupFilters = '.status-filter-btn, .admin-status-filter-btn, .user-role-filter-btn, .user-status-filter-btn, .view-user-role-filter-btn, .unit-status-filter-btn';
+    const btnGroupFilters = '.status-filter-btn, .admin-status-filter-btn, .user-role-filter-btn, .user-status-filter-btn, .view-user-role-filter-btn, .view-user-status-filter-btn, .unit-status-filter-btn'; // <-- CORREÇÃO AQUI
     if (target.matches(btnGroupFilters)) {
         const groupSelector = target.className.split(' ').find(cls => cls.endsWith('-btn'));
         document.querySelectorAll(`.${groupSelector}`).forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
@@ -144,8 +144,8 @@ async function handleGlobalClick(event, appState) {
         // Dispara a função de filtro apropriada
         if (target.matches('.status-filter-btn')) applyMyReservationsFilter(appState);
         if (target.matches('.admin-status-filter-btn')) applyAdminReservationsFilter(appState);
-        if (target.matches('.user-role-filter-btn, .user-status-filter-btn')) applyUsersFilter(appState); // <-- CORREÇÃO AQUI
-        if (target.matches('.view-user-role-filter-btn')) applyViewUsersFilter(appState);
+        if (target.matches('.user-role-filter-btn, .user-status-filter-btn')) applyUsersFilter(appState); 
+        if (target.matches('.view-user-role-filter-btn, .view-user-status-filter-btn')) applyViewUsersFilter(appState); // <-- CORREÇÃO AQUI
 
         if (target.matches('.unit-status-filter-btn')) {
             const container = document.getElementById('units-view-container');
@@ -189,7 +189,9 @@ function handleGlobalChange(event, appState) {
         '#userSectorFilter': () => applyUsersFilter(appState),
         '#userSortBy': () => applyUsersFilter(appState),
         '#userSortDir': () => applyUsersFilter(appState),
-        '#viewUserSectorFilter': () => applyViewUsersFilter(appState)
+        '#viewUserSectorFilter': () => applyViewUsersFilter(appState),
+        '#viewUserSortBy': () => applyViewUsersFilter(appState), // <-- CORREÇÃO AQUI
+        '#viewUserSortDir': () => applyViewUsersFilter(appState) // <-- CORREÇÃO AQUI
     };
 
     for (const selector in changeActions) {
