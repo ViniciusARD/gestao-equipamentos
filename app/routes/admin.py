@@ -247,7 +247,7 @@ def list_users(
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(25, ge=1, le=1000)
+    size: int = Query(15, ge=1, le=1000)
 ):
     """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
     query = db.query(User).options(joinedload(User.sector))
@@ -286,7 +286,7 @@ def view_users_for_manager(
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(25, ge=1, le=1000)
+    size: int = Query(15, ge=1, le=1000)
 ):
     """(Gerente) Lista usuários para visualização."""
     query = db.query(User).options(joinedload(User.sector))
