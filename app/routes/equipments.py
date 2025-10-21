@@ -1,5 +1,19 @@
 # app/routes/equipments.py
 
+"""
+Módulo de Rotas para Gerenciamento de Equipamentos
+
+Este arquivo define os endpoints para todas as operações CRUD (Criar, Ler,
+Atualizar, Deletar) relacionadas tanto aos Tipos de Equipamento quanto às
+Unidades de Equipamento individuais.
+
+Dependências:
+- FastAPI: Para a criação do roteador e gerenciamento das requisições.
+- SQLAlchemy: Para a interação e consultas complexas ao banco de dados.
+- Módulos de modelos e schemas: Para a estrutura de dados e validação.
+- Módulos de utilitários: security (para proteger rotas) e logging_utils.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, subqueryload, joinedload
 from sqlalchemy import func, case, or_
@@ -35,7 +49,7 @@ def create_equipment_type(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
-    """(Gerente) Cria um novo tipo de equipamento."""
+    """(Gerente) Cria um novo tipo de equipamento (ex: "Notebook Dell Vostro")."""
     db_type = db.query(EquipmentType).filter(EquipmentType.name == equipment_type.name).first()
     if db_type:
         raise HTTPException(status_code=400, detail="Este tipo de equipamento já existe.")
@@ -46,21 +60,23 @@ def create_equipment_type(
     db.refresh(new_type)
 
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
-
     return new_type
 
 @router.get("/types", response_model=Page[EquipmentTypeStatsOut])
 def list_equipment_types(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    search: Optional[str] = Query(None, alias="search"),
-    category: Optional[str] = Query(None, alias="category"),
-    availability: Optional[str] = Query(None, alias="availability"),
+    search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    availability: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(9, ge=1, le=1000)
 ):
-    """(Usuários Autenticados) Lista todos os tipos de equipamentos com estatísticas de unidades."""
-    
+    """
+    (Usuários Autenticados) Lista todos os tipos de equipamentos com estatísticas de unidades.
+    Esta consulta complexa calcula a contagem de unidades por status para cada tipo.
+    """
+    # Subconsultas para calcular as estatísticas de unidades de forma eficiente
     total_sub = func.count(EquipmentUnit.id).label("total_units")
     available_sub = func.sum(case((EquipmentUnit.status == 'available', 1), else_=0)).label("available_units")
     reserved_sub = func.sum(case((EquipmentUnit.status.in_(['reserved', 'pending']), 1), else_=0)).label("reserved_units")
@@ -77,6 +93,7 @@ def list_equipment_types(
         .outerjoin(EquipmentUnit, EquipmentType.id == EquipmentUnit.type_id)
     )
 
+    # Aplica filtros de busca por texto e categoria
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -86,12 +103,12 @@ def list_equipment_types(
                 EquipmentType.category.ilike(search_term)
             )
         )
-
     if category and category != "all":
         query = query.filter(EquipmentType.category == category)
     
     query = query.group_by(EquipmentType.id)
 
+    # Aplica filtro por disponibilidade
     if availability == "available":
         query = query.having(available_sub > 0)
     elif availability == "unavailable":
@@ -100,17 +117,16 @@ def list_equipment_types(
     total = query.count()
     results = query.order_by(EquipmentType.name).offset((page - 1) * size).limit(size).all()
     
-    stats_out = []
-    for type_obj, total_units, available, reserved, maintenance in results:
-        stats_out.append(
-            EquipmentTypeStatsOut.model_validate({
-                **type_obj.__dict__,
-                "total_units": total_units or 0,
-                "available_units": available or 0,
-                "reserved_units": reserved or 0,
-                "maintenance_units": maintenance or 0
-            })
-        )
+    # Monta a lista de resposta no formato do schema EquipmentTypeStatsOut
+    stats_out = [
+        EquipmentTypeStatsOut.model_validate({
+            **type_obj.__dict__,
+            "total_units": total_units or 0,
+            "available_units": available or 0,
+            "reserved_units": reserved or 0,
+            "maintenance_units": maintenance or 0
+        }) for type_obj, total_units, available, reserved, maintenance in results
+    ]
     
     return {
         "items": stats_out,
@@ -120,10 +136,9 @@ def list_equipment_types(
         "pages": math.ceil(total / size) if size > 0 else 0
     }
 
-
 @router.get("/types/{type_id}", response_model=EquipmentTypeWithUnitsOut)
 def get_equipment_type_with_units(type_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """(Usuários Autenticados) Busca um tipo de equipamento e suas unidades."""
+    """(Usuários Autenticados) Busca um tipo de equipamento e todas as suas unidades."""
     db_type = db.query(EquipmentType).options(
         joinedload(EquipmentType.units).subqueryload(EquipmentUnit.reservations).joinedload(Reservation.user)
     ).filter(EquipmentType.id == type_id).first()
@@ -131,20 +146,15 @@ def get_equipment_type_with_units(type_id: int, db: Session = Depends(get_db), c
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
 
+    # Adiciona a informação da reserva ativa a cada unidade para exibição no frontend
     for unit in db_type.units:
-        active_reservation = next(
-            (r for r in unit.reservations if r.status in ['approved', 'pending']),
-            None
-        )
-        unit.active_reservation = active_reservation
+        unit.active_reservation = next((r for r in unit.reservations if r.status in ['approved', 'pending']), None)
 
     return db_type
 
 @router.put("/types/{type_id}", response_model=EquipmentTypeOut)
 def update_equipment_type(
-    type_id: int,
-    type_update: EquipmentTypeUpdate,
-    db: Session = Depends(get_db),
+    type_id: int, type_update: EquipmentTypeUpdate, db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
     """(Gerente) Atualiza os detalhes de um tipo de equipamento."""
@@ -158,18 +168,12 @@ def update_equipment_type(
     
     db.commit()
     db.refresh(db_type)
-    
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' atualizou o tipo de equipamento '{db_type.name}' (ID: {db_type.id}).")
-    
     return db_type
 
 @router.delete("/types/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_equipment_type(
-    type_id: int,
-    db: Session = Depends(get_db),
-    manager_user: User = Depends(get_current_manager_user)
-):
-    """(Gerente) Deleta um tipo de equipamento e todas as suas unidades."""
+def delete_equipment_type(type_id: int, db: Session = Depends(get_db), manager_user: User = Depends(get_current_manager_user)):
+    """(Gerente) Deleta um tipo de equipamento e todas as suas unidades associadas (devido à cascata no modelo)."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
@@ -177,17 +181,14 @@ def delete_equipment_type(
     type_name = db_type.name
     db.delete(db_type)
     db.commit()
-    
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
-    
     return
 
 # --- Rotas para UNIDADES de Equipamento ---
 
 @router.post("/units", response_model=List[EquipmentUnitOut], status_code=status.HTTP_201_CREATED)
 def create_equipment_unit(
-    unit_data: EquipmentUnitCreate,
-    db: Session = Depends(get_db),
+    unit_data: EquipmentUnitCreate, db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
     """(Gerente) Cria uma ou mais novas unidades físicas para um tipo de equipamento."""
@@ -195,87 +196,43 @@ def create_equipment_unit(
     if not db_type:
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
 
-    # Validação de unicidade
-    existing_unit = db.query(EquipmentUnit).filter(
-        or_(
-            EquipmentUnit.identifier_code == unit_data.identifier_code,
-            EquipmentUnit.serial_number == unit_data.serial_number
-        )
-    ).first()
-    if existing_unit:
-        if existing_unit.identifier_code == unit_data.identifier_code:
-            raise HTTPException(status_code=409, detail=f"O código de identificação '{unit_data.identifier_code}' já está em uso.")
-        if existing_unit.serial_number == unit_data.serial_number:
-            raise HTTPException(status_code=409, detail=f"O número de série '{unit_data.serial_number}' já está em uso.")
+    # Validação de unicidade para código e número de série
+    if db.query(EquipmentUnit).filter(or_(EquipmentUnit.identifier_code == unit_data.identifier_code, EquipmentUnit.serial_number == unit_data.serial_number)).first():
+        raise HTTPException(status_code=409, detail=f"O código de identificação ou número de série já está em uso.")
 
     if unit_data.quantity > 1:
          raise HTTPException(status_code=400, detail="Não é possível criar múltiplas unidades com número de série. Adicione uma de cada vez.")
 
     created_units = []
-    for i in range(unit_data.quantity):
-        new_unit = EquipmentUnit(
-            type_id=unit_data.type_id,
-            identifier_code=unit_data.identifier_code,
-            serial_number=unit_data.serial_number,
-            status=unit_data.status
-        )
+    for _ in range(unit_data.quantity):
+        new_unit = EquipmentUnit(**unit_data.dict(exclude={'quantity'}))
         db.add(new_unit)
-        db.flush() 
-
-        history_event = UnitHistory(
-            unit_id=new_unit.id,
-            event_type='created',
-            notes=f"Unidade criada com status '{new_unit.status}'.",
-            user_id=manager_user.id
-        )
+        db.flush()  # Garante que o ID da nova unidade seja gerado para o log de histórico
+        
+        # Cria um registro de histórico para o evento de criação
+        history_event = UnitHistory(unit_id=new_unit.id, event_type='created', notes=f"Unidade criada com status '{new_unit.status}'.", user_id=manager_user.id)
         db.add(history_event)
         created_units.append(new_unit)
 
     db.commit()
-    
-    log_message = (
-        f"Gerente '{manager_user.email}' criou {unit_data.quantity} unidade(s) "
-        f"para o tipo '{db_type.name}'."
-    )
+    log_message = f"Gerente '{manager_user.email}' criou {unit_data.quantity} unidade(s) para o tipo '{db_type.name}'."
     create_log(db, manager_user.id, "INFO", log_message)
     
-    for unit in created_units:
-        db.refresh(unit)
-
+    for unit in created_units: db.refresh(unit)
     return created_units
 
-
-@router.get("/units", response_model=List[EquipmentUnitOut])
-def list_all_units(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """(Usuários Autenticados) Lista todas as unidades de equipamentos."""
-    return db.query(EquipmentUnit).all()
-
 @router.get("/units/{unit_id}/history", response_model=List[UnitHistoryOut])
-def get_unit_history(
-    unit_id: int,
-    db: Session = Depends(get_db),
-    manager_user: User = Depends(get_current_manager_user)
-):
+def get_unit_history(unit_id: int, db: Session = Depends(get_db), manager_user: User = Depends(get_current_manager_user)):
     """(Gerente) Retorna o histórico de eventos de uma unidade específica."""
-    unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
-    if not unit:
+    if not db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first():
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
 
-    history = (
-        db.query(UnitHistory)
-        .options(joinedload(UnitHistory.user))
-        .filter(UnitHistory.unit_id == unit_id)
-        .order_by(UnitHistory.created_at.desc())
-        .all()
-    )
+    history = db.query(UnitHistory).options(joinedload(UnitHistory.user)).filter(UnitHistory.unit_id == unit_id).order_by(UnitHistory.created_at.desc()).all()
     return history
-
 
 @router.put("/units/{unit_id}", response_model=EquipmentUnitOut)
 def update_equipment_unit(
-    unit_id: int,
-    unit_update: EquipmentUnitUpdate,
-    db: Session = Depends(get_db),
+    unit_id: int, unit_update: EquipmentUnitUpdate, db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user)
 ):
     """(Gerente) Atualiza os detalhes de uma unidade de equipamento."""
@@ -285,10 +242,10 @@ def update_equipment_unit(
 
     update_data = unit_update.dict(exclude_unset=True)
 
+    # Validações de unicidade para os campos que estão sendo alterados
     if 'identifier_code' in update_data and update_data['identifier_code'] != db_unit.identifier_code:
         if db.query(EquipmentUnit).filter(EquipmentUnit.identifier_code == update_data['identifier_code']).first():
             raise HTTPException(status_code=409, detail=f"O código de identificação '{update_data['identifier_code']}' já está em uso.")
-            
     if 'serial_number' in update_data and update_data['serial_number'] != db_unit.serial_number:
         if db.query(EquipmentUnit).filter(EquipmentUnit.serial_number == update_data['serial_number']).first():
             raise HTTPException(status_code=409, detail=f"O número de série '{update_data['serial_number']}' já está em uso.")
@@ -298,64 +255,37 @@ def update_equipment_unit(
     
     db.commit()
     db.refresh(db_unit)
-    
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' atualizou a unidade ID {db_unit.id}.")
-    
     return db_unit
 
 @router.delete("/units/{unit_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_equipment_unit(
-    unit_id: int,
-    db: Session = Depends(get_db),
-    manager_user: User = Depends(get_current_manager_user)
-):
+def delete_equipment_unit(unit_id: int, db: Session = Depends(get_db), manager_user: User = Depends(get_current_manager_user)):
     """(Gerente) Deleta uma unidade de equipamento."""
     db_unit = db.query(EquipmentUnit).filter(EquipmentUnit.id == unit_id).first()
     if not db_unit:
         raise HTTPException(status_code=404, detail="Unidade de equipamento não encontrada.")
         
-    active_reservation = db.query(Reservation).filter(
-        Reservation.unit_id == unit_id,
-        Reservation.status.in_(['pending', 'approved'])
-    ).first()
-    
-    if active_reservation:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Não é possível deletar a unidade. Ela está associada à reserva ativa ID {active_reservation.id}."
-        )
+    # Impede a exclusão se a unidade tiver uma reserva ativa
+    if db.query(Reservation).filter(Reservation.unit_id == unit_id, Reservation.status.in_(['pending', 'approved'])).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Não é possível deletar a unidade. Ela está associada a uma reserva ativa.")
     
     unit_identifier = db_unit.identifier_code or db_unit.id
     db.delete(db_unit)
     db.commit()
-    
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' deletou a unidade '{unit_identifier}' (ID: {unit_id}).")
-    
     return
 
 # --- Rota de Estatísticas ---
 @router.get("/stats/popular", response_model=List[EquipmentTypeOut])
 def get_popular_equipment_types(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Retorna os 5 tipos de equipamentos mais reservados."""
-    
-    popular_types_subquery = (
-        db.query(
-            EquipmentType.id,
-            func.count(Reservation.id).label('reservation_count')
-        )
-        .join(EquipmentUnit, EquipmentType.id == EquipmentUnit.type_id)
-        .join(Reservation, EquipmentUnit.id == Reservation.unit_id)
+    """(Usuários Autenticados) Retorna os 5 tipos de equipamentos mais reservados."""
+    popular_types = (
+        db.query(EquipmentType)
+        .join(EquipmentUnit)
+        .join(Reservation)
         .group_by(EquipmentType.id)
         .order_by(func.count(Reservation.id).desc())
         .limit(5)
-        .subquery()
-    )
-
-    popular_types = (
-        db.query(EquipmentType)
-        .join(popular_types_subquery, EquipmentType.id == popular_types_subquery.c.id)
-        .order_by(popular_types_subquery.c.reservation_count.desc())
         .all()
     )
-
     return popular_types

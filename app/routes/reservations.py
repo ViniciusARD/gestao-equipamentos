@@ -1,5 +1,18 @@
 # app/routes/reservations.py
 
+"""
+Módulo de Rotas para Gerenciamento de Reservas (visão do usuário).
+
+Este arquivo define os endpoints que permitem a um usuário criar e visualizar
+suas próprias reservas de equipamentos.
+
+Dependências:
+- FastAPI: Para a criação do roteador, dependências e tarefas em segundo plano.
+- SQLAlchemy: Para a interação com o banco de dados.
+- Módulos de modelos e schemas: Para a estrutura de dados e validação.
+- Módulos de utilitários: security, email_utils, logging_utils.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
@@ -19,21 +32,26 @@ from app.security import get_current_user, get_current_requester_user
 from app.email_utils import send_reservation_pending_email, send_new_reservation_to_managers_email
 from app.logging_utils import create_log
 
+# Cria um roteador FastAPI para agrupar os endpoints de reservas
 router = APIRouter(
     prefix="/reservations",
     tags=["Reservations"]
 )
 
-# --- TAREFA EM SEGUNDO PLANO CORRIGIDA ---
+# --- Tarefa em Segundo Plano para Envio de E-mails ---
 
 async def task_send_creation_emails(reservation_id: int):
     """
-    (ASYNC) Envia e-mail para o usuário e para os gerentes sobre uma nova reserva.
-    Cria sua própria sessão de banco de dados.
+    (ASSÍNCRONA) Tarefa em segundo plano para enviar e-mails de notificação.
+
+    Esta função é executada de forma independente da requisição HTTP principal.
+    Ela cria sua própria sessão de banco de dados para buscar os detalhes da
+    reserva e enviar os e-mails necessários (um para o usuário e outro para
+    os gerentes), evitando que a API espere pelo envio dos e-mails.
     """
-    db = SessionLocal()
+    db = SessionLocal()  # Cria uma nova sessão de DB específica para esta tarefa
     try:
-        # Busca a reserva com os dados necessários
+        # Busca a reserva com todos os dados relacionados necessários para os e-mails
         reservation = db.query(Reservation).options(
             joinedload(Reservation.user),
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
@@ -42,16 +60,16 @@ async def task_send_creation_emails(reservation_id: int):
         if not reservation:
             return
 
-        # Busca os gerentes
+        # Busca todos os usuários com permissão de 'manager' ou 'admin'
         managers_and_admins = db.query(User).filter(User.role.in_(['manager', 'admin'])).all()
 
-        # Dispara as duas tarefas de e-mail em paralelo
+        # Dispara as duas tarefas de envio de e-mail em paralelo para otimizar o tempo
         await asyncio.gather(
             send_reservation_pending_email(reservation),
             send_new_reservation_to_managers_email(managers_and_admins, reservation)
         )
     finally:
-        db.close()
+        db.close()  # Garante que a sessão do banco de dados seja fechada
 
 
 # --- ROTAS ---
@@ -63,14 +81,19 @@ def create_reservation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user)
 ):
-    """Cria uma nova solicitação de reserva para uma unidade de equipamento."""
+    """
+    (Requerente) Cria uma nova solicitação de reserva para uma unidade de equipamento.
+    """
+    # Valida se a unidade de equipamento solicitada existe
     unit = db.query(EquipmentUnit).options(joinedload(EquipmentUnit.equipment_type)).filter(EquipmentUnit.id == reservation.unit_id).first()
     if not unit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unidade de equipamento não encontrada.")
 
+    # Valida se a unidade está disponível para reserva
     if unit.status != 'available':
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta unidade não está disponível para reserva.")
 
+    # Verifica se há conflito de horário com outras reservas pendentes ou aprovadas para a mesma unidade
     existing_reservation = db.query(Reservation).filter(
         Reservation.unit_id == reservation.unit_id,
         Reservation.end_time > reservation.start_time,
@@ -84,12 +107,14 @@ def create_reservation(
             detail="Já existe uma reserva para esta unidade no período solicitado."
         )
     
+    # Cria a nova reserva com status 'pending'
     new_reservation = Reservation(
         **reservation.dict(),
         user_id=current_user.id,
         status='pending'
     )
     
+    # Altera o status da unidade para 'pending' para evitar que seja reservada por outra pessoa
     unit.status = 'pending'
     
     db.add(new_reservation)
@@ -98,7 +123,7 @@ def create_reservation(
 
     create_log(db, current_user.id, "INFO", f"Usuário '{current_user.username}' solicitou a reserva da unidade '{unit.identifier_code}' (ID: {unit.id}).")
 
-    # Adiciona a tarefa em segundo plano que irá cuidar de TODOS os e-mails
+    # Adiciona a tarefa de envio de e-mails para ser executada em segundo plano
     background_tasks.add_task(task_send_creation_emails, new_reservation.id)
 
     return new_reservation
@@ -114,18 +139,21 @@ def get_my_reservations(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)
 ):
-    """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
+    """
+    (Requerente) Retorna uma lista paginada de todas as reservas feitas pelo usuário autenticado, com filtros.
+    """
     query = (
         db.query(Reservation)
         .join(Reservation.equipment_unit)
         .join(EquipmentUnit.equipment_type)
         .filter(Reservation.user_id == current_user.id)
-        .options(
+        .options(  # Otimiza a consulta carregando os dados relacionados de uma só vez
             joinedload(Reservation.user),
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
         )
     )
 
+    # Aplica filtros de busca e de status, se fornecidos
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -134,16 +162,18 @@ def get_my_reservations(
                 EquipmentUnit.identifier_code.ilike(search_term)
             )
         )
-    
     if status and status != "all":
         query = query.filter(Reservation.status == status)
 
+    # Aplica filtros de período, se fornecidos
     if start_date:
         query = query.filter(Reservation.end_time >= start_date)
     if end_date:
         query = query.filter(Reservation.start_time <= end_date)
 
+    # Calcula o total de itens para a paginação
     total = query.count()
+    # Executa a consulta com ordenação, paginação e retorna os resultados
     reservations = query.order_by(Reservation.start_time.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
@@ -160,20 +190,23 @@ def get_my_upcoming_reservations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user)
 ):
-    """Retorna as próximas 3 reservas aprovadas e futuras do usuário."""
+    """
+    (Requerente) Retorna as próximas 3 reservas aprovadas e futuras do usuário.
+    Ideal para um painel de visualização rápida.
+    """
     now = datetime.now(timezone.utc)
     reservations = (
         db.query(Reservation)
         .filter(
             Reservation.user_id == current_user.id,
             Reservation.status == 'approved',
-            Reservation.start_time > now
+            Reservation.start_time > now  # Filtra apenas reservas que ainda não começaram
         )
         .options(
             joinedload(Reservation.user),
             joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
         )
-        .order_by(Reservation.start_time.asc())
+        .order_by(Reservation.start_time.asc()) # Ordena pela mais próxima
         .limit(3)
         .all()
     )
