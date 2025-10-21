@@ -20,8 +20,9 @@ export async function loadMyAccountView(currentUser, token) {
             <button class="btn btn-outline-primary" id="connectGoogleBtn"><i class="bi bi-google me-2"></i>Conectar com Google</button>
         `;
 
-    const sectors = await apiFetch(`${API_URL}/sectors`, token);
-    const sectorOptions = sectors.map(s =>
+    // CORREÇÃO: Adicionada a barra final na URL
+    const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
+    const sectorOptions = sectorsData.items.map(s =>
         `<option value="${s.id}" ${currentUser.sector && currentUser.sector.id === s.id ? 'selected' : ''}>${s.name}</option>`
     ).join('');
 

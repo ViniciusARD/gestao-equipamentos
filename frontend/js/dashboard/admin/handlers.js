@@ -3,7 +3,7 @@
 import { API_URL, apiFetch } from '../api.js';
 import { showToast, setButtonLoading, renderStatusBadge, renderRoleBadge } from '../ui.js';
 import { renderAdminReservationActions, renderUserActions } from './renderers.js';
-import { loadManageInventoryView } from './inventoryViews.js'; // <-- CORREÇÃO FINAL AQUI
+import { loadManageInventoryView } from './inventoryViews.js';
 
 export async function handleUpdateReservationStatus(button, token) {
     const { reservationId, action, unitIdentifier, userIdentifier } = button.dataset;
@@ -53,8 +53,9 @@ export async function handleUserAction(button, token, currentUserId) {
         
         const sectorSelect = document.getElementById('userSectorSelect');
         sectorSelect.innerHTML = '<option>Carregando...</option>';
-        const sectors = await apiFetch(`${API_URL}/sectors`, token);
-        sectorSelect.innerHTML = '<option value="">Nenhum</option>' + sectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        // CORREÇÃO: Adicionada a barra final na URL
+        const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
+        sectorSelect.innerHTML = '<option value="">Nenhum</option>' + sectorsData.items.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
         modal.show();
         return;
@@ -130,7 +131,7 @@ export async function handleEquipmentTypeSubmit(token) {
         showToast(`Tipo ${typeId ? 'atualizado' : 'criado'}!`, 'success');
         bootstrap.Modal.getInstance(form.closest('.modal')).hide();
         
-        loadManageInventoryView(token);
+        loadManageInventoryView(token, {}); // Recarrega com parâmetros vazios
 
     } catch (e) {
         messageDiv.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;

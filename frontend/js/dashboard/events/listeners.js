@@ -68,13 +68,14 @@ async function handleGlobalClick(event, appState) {
 
     const token = appState.token;
 
+    // Ações de Navegação
     const navActions = {
         'nav-dashboard': () => loadDashboardHomeView(token),
-        'nav-equipments': () => loadEquipmentsView(token),
+        'nav-equipments': () => loadEquipmentsView(token, {}),
         'nav-my-reservations': () => loadMyReservationsView(token, {}),
         'nav-my-account': () => loadMyAccountView(appState.currentUser, token),
         'nav-manage-reservations': () => loadManageReservationsView(token, {}),
-        'nav-manage-inventory': () => loadManageInventoryView(token),
+        'nav-manage-inventory': () => loadManageInventoryView(token, {}),
         'nav-view-users': () => loadViewUsersView(token, {}),
         'nav-manage-users': () => loadManageUsersView(token, appState.currentUser.id, {}),
         'nav-manage-sectors': () => loadManageSectorsView(token),
@@ -112,13 +113,14 @@ async function handleGlobalClick(event, appState) {
         '#disable2faBtn': () => handleDisable2FA(token, appState),
         '#add-sector-btn': () => openSectorModal(),
         '.sector-action-btn': () => handleSectorAction(target, token),
-        '#back-to-inventory-btn': () => loadManageInventoryView(token),
-        // Filtros (botões)
+        '#back-to-inventory-btn': () => loadManageInventoryView(token, {}),
+        // Filtros (botões de aplicação)
         '#applyReservationsFilterBtn': () => applyAdminReservationsFilter(appState),
         '#applyMyReservationsFilterBtn': () => applyMyReservationsFilter(appState),
         '#searchUsersBtn': () => applyUsersFilter(appState),
         '#searchViewUsersBtn': () => applyViewUsersFilter(appState),
         '#searchInventoryBtn': () => applyInventoryFilter(appState),
+        '#searchEquipmentsBtn': () => applyEquipmentsFilter(appState),
         '#searchSectorsBtn': () => applySectorsFilter(appState),
         '#applyLogsFilterBtn': () => applyLogsFilter(appState),
         '#applyAnalyticsFilterBtn': () => applyAnalyticsFilter(appState),
@@ -149,6 +151,28 @@ async function handleGlobalClick(event, appState) {
             const allUnits = JSON.parse(container.dataset.units);
             const selectedStatus = target.dataset.status;
             populateUnitsTable(allUnits, appState.token, selectedStatus);
+        }
+    }
+    
+    // **CORREÇÃO: Handler de Paginação**
+    if (target.matches('.pagination-btn')) {
+        event.preventDefault();
+        const page = parseInt(target.dataset.page);
+        const actionPrefix = target.dataset.actionPrefix;
+
+        const paginationActions = {
+            'reservations': () => applyAdminReservationsFilter(appState, page),
+            'my-reservations': () => applyMyReservationsFilter(appState, page),
+            'users': () => applyUsersFilter(appState, page),
+            'view-users': () => applyViewUsersFilter(appState, page),
+            'logs': () => applyLogsFilter(appState, page),
+            'sectors': () => applySectorsFilter(appState, page),
+            'inventory': () => applyInventoryFilter(appState, page),
+            'equipments': () => applyEquipmentsFilter(appState, page) // <-- ADICIONADO
+        };
+        
+        if (paginationActions[actionPrefix]) {
+            paginationActions[actionPrefix]();
         }
     }
 }

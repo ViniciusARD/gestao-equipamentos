@@ -1,7 +1,7 @@
 // js/dashboard/admin/userViews.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { renderView, renderLogLevelBadge, renderStatusBadge, renderRoleBadge } from '../ui.js';
+import { renderView, renderLogLevelBadge, renderStatusBadge, renderRoleBadge, renderPaginationControls } from '../ui.js';
 import { renderAdminReservationActions, renderUserActions, renderManagerUserActions } from './renderers.js';
 
 export async function openUserHistoryModal(userId, userName, token) {
@@ -14,6 +14,7 @@ export async function openUserHistoryModal(userId, userName, token) {
     modal.show();
 
     try {
+        // A paginação não é necessária aqui, pois é um modal com histórico
         const history = await apiFetch(`${API_URL}/admin/users/${userId}/history`, token);
         if (history.length === 0) {
             modalBody.innerHTML = '<p class="text-muted">Nenhuma reserva encontrada para este usuário.</p>';
@@ -94,20 +95,23 @@ export async function loadManageReservationsView(token, params = {}) {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
     const container = document.getElementById('listContainer');
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
         const url = new URL(`${API_URL}/admin/reservations`);
+        url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
         if (params.status && params.status !== 'all') url.searchParams.append('status', params.status);
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
         
-        const reservations = await apiFetch(url, token);
-        if (reservations.length === 0) {
+        const data = await apiFetch(url, token);
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhuma reserva encontrada com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
         container.innerHTML = `
@@ -116,7 +120,7 @@ export async function loadManageReservationsView(token, params = {}) {
                     <tr><th>Usuário</th><th>Equipamento</th><th>Status</th><th>Período</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
-                    ${reservations.map(res => `
+                    ${data.items.map(res => `
                         <tr id="reservation-row-${res.id}">
                             <td data-label="Usuário">${res.user.username} <small class="text-muted d-block">${res.user.email}</small></td>
                             <td data-label="Equipamento">${res.equipment_unit.equipment_type.name} (${res.equipment_unit.identifier_code || 'N/A'})</td>
@@ -128,6 +132,7 @@ export async function loadManageReservationsView(token, params = {}) {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'reservations');
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
@@ -142,7 +147,8 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
         { key: 'admin', text: 'Admins' }
     ];
 
-    const sectors = await apiFetch(`${API_URL}/sectors/`, token);
+    // CORREÇÃO: Adicionada a barra final na URL
+    const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -158,7 +164,7 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
             <div class="col-lg-4">
                 <select id="userSectorFilter" class="form-select">
                     <option value="">Todos os setores</option>
-                    ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                    ${sectorsData.items.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                 </select>
             </div>
         </div>
@@ -172,19 +178,22 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
     const container = document.getElementById('listContainer');
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
         const url = new URL(`${API_URL}/admin/users`);
+        url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
         if (params.role && params.role !== 'all') url.searchParams.append('role', params.role);
         if (params.sector_id) url.searchParams.append('sector_id', params.sector_id);
         
-        const users = await apiFetch(url, token);
-        if (users.length === 0) {
+        const data = await apiFetch(url, token);
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum usuário encontrado com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
         container.innerHTML = `
@@ -193,7 +202,7 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
                     <tr><th>ID</th><th>Usuário</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
-                    ${users.map(user => `
+                    ${data.items.map(user => `
                         <tr id="user-row-${user.id}">
                             <td>${user.id}</td>
                             <td>${user.username}</td>
@@ -207,6 +216,7 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'users');
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
@@ -221,7 +231,8 @@ export async function loadViewUsersView(token, params = {}) {
         { key: 'admin', text: 'Admins' }
     ];
 
-    const sectors = await apiFetch(`${API_URL}/sectors/`, token);
+    // CORREÇÃO: Adicionada a barra final na URL
+    const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -237,7 +248,7 @@ export async function loadViewUsersView(token, params = {}) {
             <div class="col-lg-4">
                 <select id="viewUserSectorFilter" class="form-select">
                     <option value="">Todos os setores</option>
-                    ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                    ${sectorsData.items.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                 </select>
             </div>
         </div>
@@ -251,19 +262,22 @@ export async function loadViewUsersView(token, params = {}) {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
     const container = document.getElementById('listContainer');
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
         const url = new URL(`${API_URL}/admin/users/view`);
+        url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
         if (params.role && params.role !== 'all') url.searchParams.append('role', params.role);
         if (params.sector_id) url.searchParams.append('sector_id', params.sector_id);
         
-        const users = await apiFetch(url, token);
-        if (users.length === 0) {
+        const data = await apiFetch(url, token);
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum usuário encontrado com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
         container.innerHTML = `
@@ -272,7 +286,7 @@ export async function loadViewUsersView(token, params = {}) {
                     <tr><th>ID</th><th>Usuário</th><th>Email</th><th>Setor</th><th>Permissão</th><th>Status</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
-                    ${users.map(user => `
+                    ${data.items.map(user => `
                         <tr id="user-row-${user.id}">
                             <td>${user.id}</td>
                             <td>${user.username}</td>
@@ -286,6 +300,7 @@ export async function loadViewUsersView(token, params = {}) {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'view-users');
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
@@ -293,8 +308,9 @@ export async function loadViewUsersView(token, params = {}) {
 
 
 export async function loadSystemLogsView(token, params = {}) {
-    const users = await apiFetch(`${API_URL}/admin/users`, token, { limit: 1000 });
-    const userMap = users.reduce((map, user) => {
+    // CORREÇÃO: busca todos os usuários para o dropdown de filtro
+    const usersData = await apiFetch(`${API_URL}/admin/users?size=1000`, token);
+    const userMap = usersData.items.reduce((map, user) => {
         map[user.id] = user.username;
         return map;
     }, {});
@@ -320,7 +336,7 @@ export async function loadSystemLogsView(token, params = {}) {
                     <div class="col-lg-3 col-md-6">
                         <select id="logsUserFilter" class="form-select">
                             <option value="" ${!params.user_id ? 'selected' : ''}>Todos os Usuários</option>
-                            ${users.map(u => `<option value="${u.id}" ${params.user_id == u.id ? 'selected' : ''}>${u.username}</option>`).join('')}
+                            ${usersData.items.map(u => `<option value="${u.id}" ${params.user_id == u.id ? 'selected' : ''}>${u.username}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-lg-3 col-md-6">
@@ -338,6 +354,7 @@ export async function loadSystemLogsView(token, params = {}) {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
 
     const container = document.getElementById('listContainer');
@@ -345,16 +362,18 @@ export async function loadSystemLogsView(token, params = {}) {
 
     try {
         const url = new URL(`${API_URL}/admin/logs`);
+        url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
         if (params.level && params.level !== 'all') url.searchParams.append('level', params.level);
         if (params.user_id) url.searchParams.append('user_id', params.user_id);
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
 
-        const logs = await apiFetch(url, token);
+        const data = await apiFetch(url, token);
         
-        if (logs.length === 0) {
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum log encontrado com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
 
@@ -364,7 +383,7 @@ export async function loadSystemLogsView(token, params = {}) {
                     <tr><th>Data</th><th>Usuário</th><th>Nível</th><th>Mensagem</th></tr>
                 </thead>
                 <tbody>
-                    ${logs.map(log => `
+                    ${data.items.map(log => `
                         <tr>
                             <td class="text-nowrap">${new Date(log.created_at).toLocaleString('pt-BR')}</td>
                             <td>${log.user_id ? userMap[log.user_id] || `ID ${log.user_id}` : 'Sistema'}</td>
@@ -375,12 +394,13 @@ export async function loadSystemLogsView(token, params = {}) {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'logs');
     } catch (e) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
 
-export async function loadManageSectorsView(token, searchTerm = '') {
+export async function loadManageSectorsView(token, searchTerm = '', page = 1) {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerir Setores</h1>
@@ -395,18 +415,22 @@ export async function loadManageSectorsView(token, searchTerm = '') {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
 
     const container = document.getElementById('listContainer');
     try {
-        const url = new URL(`${API_URL}/sectors`);
+        // CORREÇÃO: Adicionada a barra final na URL
+        const url = new URL(`${API_URL}/sectors/`);
+        url.searchParams.append('page', page);
         if (searchTerm) {
             url.searchParams.append('search', searchTerm);
         }
-        const sectors = await apiFetch(url, token);
+        const data = await apiFetch(url, token);
         
-        if (sectors.length === 0) {
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhum setor encontrado.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
         container.innerHTML = `
@@ -415,7 +439,7 @@ export async function loadManageSectorsView(token, searchTerm = '') {
                     <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
-                    ${sectors.map(sector => `
+                    ${data.items.map(sector => `
                         <tr id="sector-row-${sector.id}">
                             <td>${sector.id}</td>
                             <td class="sector-name-cell">${sector.name}</td>
@@ -428,6 +452,7 @@ export async function loadManageSectorsView(token, searchTerm = '') {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'sectors');
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }

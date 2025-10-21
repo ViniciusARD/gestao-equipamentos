@@ -1,7 +1,7 @@
 // js/dashboard/admin/inventoryViews.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { renderView, renderStatusBadge } from '../ui.js';
+import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.js';
 import { renderInventoryRow } from './renderers.js';
 
 export function populateUnitsTable(units, token, statusFilter = 'all') {
@@ -10,7 +10,6 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
 
     const filteredUnits = units.filter(unit => {
         if (statusFilter === 'all') return true;
-        // Agrupa 'reserved' e 'pending' sob o mesmo filtro 'reserved'
         if (statusFilter === 'reserved') return unit.status === 'reserved' || unit.status === 'pending';
         return unit.status === statusFilter;
     });
@@ -50,9 +49,9 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
     }).join('');
 }
 
-export async function loadManageInventoryView(token, searchTerm = '', categoryFilter = 'all', availabilityFilter = 'all') {
+export async function loadManageInventoryView(token, params = {}) {
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
-    const categories = [...new Set(allTypesForCategories.map(type => type.category))].sort();
+    const categories = [...new Set(allTypesForCategories.items.map(type => type.category))].sort();
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -63,12 +62,12 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-lg-6">
-                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria..." value="${searchTerm}">
+                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria..." value="${params.search || ''}">
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <select id="inventoryCategoryFilter" class="form-select">
                             <option value="all">Todas as categorias</option>
-                            ${categories.map(cat => `<option value="${cat}" ${categoryFilter === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                            ${categories.map(cat => `<option value="${cat}" ${params.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-lg-3 col-md-6 d-flex align-items-end">
@@ -78,6 +77,7 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
             </div>
         </div>
         <div id="listContainer" class="row"></div>
+        <div id="paginationContainer"></div>
     `);
     
     const container = document.getElementById('listContainer');
@@ -85,24 +85,26 @@ export async function loadManageInventoryView(token, searchTerm = '', categoryFi
 
     try {
         const url = new URL(`${API_URL}/equipments/types`);
-        if (searchTerm) url.searchParams.append('search', searchTerm);
-        if (categoryFilter && categoryFilter !== 'all') url.searchParams.append('category', categoryFilter);
-        if (availabilityFilter && availabilityFilter !== 'all') url.searchParams.append('availability', availabilityFilter);
+        url.searchParams.append('page', params.page || 1);
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.category && params.category !== 'all') url.searchParams.append('category', params.category);
 
-        const types = await apiFetch(url.toString(), token);
+        const data = await apiFetch(url.toString(), token);
 
-        if (types.length === 0) {
+        if (data.items.length === 0) {
             container.innerHTML = '<div class="col-12"><p class="text-muted text-center">Nenhum tipo de equipamento encontrado com os filtros aplicados.</p></div>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
-        container.innerHTML = types.map(type => renderInventoryRow(type)).join('');
+        container.innerHTML = data.items.map(type => renderInventoryRow(type)).join('');
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'inventory');
+
     } catch (e) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
 
 
-// <<-- FUNÇÃO ATUALIZADA -->>
 export async function loadManageUnitsView(token, typeId) {
     renderView(`
         <div id="units-view-container">
@@ -114,11 +116,10 @@ export async function loadManageUnitsView(token, typeId) {
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         const container = document.getElementById('units-view-container');
         
-        // Define os filtros de status
         const statusFilters = [
             { key: 'all', text: 'Todos' },
             { key: 'available', text: 'Disponíveis' },
-            { key: 'reserved', text: 'Reservados' }, // Inclui 'pending' e 'reserved'
+            { key: 'reserved', text: 'Reservados' },
             { key: 'maintenance', text: 'Manutenção' }
         ];
         
@@ -194,7 +195,6 @@ export async function loadManageUnitsView(token, typeId) {
             </div>
         `;
         
-        // Armazena as unidades originais para não precisar buscar da API a cada filtro
         container.dataset.units = JSON.stringify(type.units);
         
         populateUnitsTable(type.units, token, 'all');

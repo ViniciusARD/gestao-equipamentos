@@ -3,11 +3,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import math
 
 from app.database import get_db
 from app.models.sector import Sector
-from app.schemas.sector import SectorCreate, SectorOut, SectorUpdate
-from app.security import get_current_admin_user
+from app.schemas.sector import SectorOut, SectorCreate, SectorUpdate
+from app.schemas.pagination import Page
+from app.security import get_current_user, get_current_admin_user
 from app.models.user import User
 from app.logging_utils import create_log
 
@@ -35,17 +37,28 @@ def create_sector(
 
     return new_sector
 
-@router.get("/", response_model=List[SectorOut])
+@router.get("/", response_model=Page[SectorOut])
 def list_sectors(
     db: Session = Depends(get_db),
-    search: Optional[str] = Query(None)
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000)
 ):
-    """Lists all available sectors (public access)."""
+    """Lists all available sectors with pagination."""
     query = db.query(Sector)
     if search:
         query = query.filter(Sector.name.ilike(f"%{search}%"))
-    return query.order_by(Sector.name).all()
 
+    total = query.count()
+    sectors = query.order_by(Sector.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": sectors,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }
 
 @router.put("/{sector_id}", response_model=SectorOut)
 def update_sector(

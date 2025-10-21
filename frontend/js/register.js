@@ -37,12 +37,13 @@ passwordInput.addEventListener('keyup', () => {
 document.addEventListener('DOMContentLoaded', async () => {
     const sectorSelect = document.getElementById('sector');
     try {
-        const response = await fetch('http://127.0.0.1:8000/sectors');
+        // CORREÇÃO: Adicionada a barra final na URL
+        const response = await fetch('http://127.0.0.1:8000/sectors/?size=1000'); // Pede todos os setores
         if (!response.ok) {
             throw new Error('Não foi possível carregar os setores.');
         }
-        const sectors = await response.json();
-        sectors.forEach(sector => {
+        const data = await response.json(); // Agora a resposta é um objeto de página
+        data.items.forEach(sector => { // Itera sobre data.items
             const option = document.createElement('option');
             option.value = sector.id;
             option.textContent = sector.name;

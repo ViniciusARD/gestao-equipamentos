@@ -2,12 +2,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List, Optional
 from datetime import datetime, timezone
 import asyncio
+import math
 
-from app.database import get_db, SessionLocal 
+from app.database import get_db, SessionLocal
 from app.models.user import User
 from app.models.sector import Sector
 from app.models.reservation import Reservation
@@ -18,6 +19,7 @@ from app.models.unit_history import UnitHistory
 from app.schemas.reservation import ReservationOut
 from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate, UserSectorUpdate, UserStatusUpdate
 from app.schemas.user import UserOut
+from app.schemas.pagination import Page
 from app.security import get_current_admin_user, get_current_manager_user
 from app.google_calendar_utils import get_calendar_service, create_calendar_event
 from app.models.activity_log import ActivityLog
@@ -94,16 +96,18 @@ async def task_send_reservation_email(reservation_id: int, email_type: str):
 
 # --- ROTAS ---
 
-@router.get("/reservations", response_model=List[ReservationOut])
+@router.get("/reservations", response_model=Page[ReservationOut])
 def list_all_reservations(
     db: Session = Depends(get_db),
     manager_user: User = Depends(get_current_manager_user),
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None)
+    end_date: Optional[datetime] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000)
 ):
-    """(Gerente) Lista todas as reservas, com filtros avançados."""
+    """(Gerente) Lista todas as reservas, com filtros avançados e paginação."""
     query = (
         db.query(Reservation)
         .join(Reservation.user)
@@ -136,9 +140,17 @@ def list_all_reservations(
         query = query.filter(Reservation.end_time >= start_date)
     if end_date:
         query = query.filter(Reservation.start_time <= end_date)
+
+    total = query.count()
+    reservations = query.order_by(Reservation.start_time.desc()).offset((page - 1) * size).limit(size).all()
     
-    reservations = query.order_by(Reservation.start_time.desc()).all()
-    return reservations
+    return {
+        "items": reservations,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }
 
 
 @router.patch("/reservations/{reservation_id}", response_model=ReservationOut)
@@ -227,15 +239,15 @@ def notify_overdue_reservation(
 
     return {"message": "Notificação de atraso enviada com sucesso."}
 
-@router.get("/users", response_model=List[UserOut])
+@router.get("/users", response_model=Page[UserOut])
 def list_users(
     db: Session = Depends(get_db), 
     admin_user: User = Depends(get_current_admin_user),
     search: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
-    skip: int = 0,
-    limit: int = 100
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=1000)
 ):
     """(Admin) Lista todos os usuários cadastrados, com busca, filtro de permissão e paginação."""
     query = db.query(User).options(joinedload(User.sector))
@@ -254,18 +266,27 @@ def list_users(
     if sector_id:
         query = query.filter(User.sector_id == sector_id)
 
-    users = query.order_by(User.username).offset(skip).limit(limit).all()
-    return users
+    total = query.count()
+    users = query.order_by(User.username).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": users,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }
 
-@router.get("/users/view", response_model=List[UserOut])
+
+@router.get("/users/view", response_model=Page[UserOut])
 def view_users_for_manager(
     db: Session = Depends(get_db), 
     manager_user: User = Depends(get_current_manager_user),
     search: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     sector_id: Optional[int] = Query(None),
-    skip: int = 0,
-    limit: int = 100
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=1000)
 ):
     """(Gerente) Lista usuários para visualização."""
     query = db.query(User).options(joinedload(User.sector))
@@ -284,8 +305,16 @@ def view_users_for_manager(
     if sector_id:
         query = query.filter(User.sector_id == sector_id)
 
-    users = query.order_by(User.username).offset(skip).limit(limit).all()
-    return users
+    total = query.count()
+    users = query.order_by(User.username).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": users,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }
 
 
 @router.get("/users/{user_id}/history", response_model=List[ReservationOut])
@@ -412,7 +441,7 @@ def set_user_sector(
 
     return db_user
 
-@router.get("/logs", response_model=List[ActivityLogOut])
+@router.get("/logs", response_model=Page[ActivityLogOut])
 def get_activity_logs(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user),
@@ -421,8 +450,8 @@ def get_activity_logs(
     user_id: Optional[int] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    skip: int = 0,
-    limit: int = 100
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=1000)
 ):
     """(Admin) Lista os logs de atividade da aplicação, com filtros avançados e paginação."""
     query = db.query(ActivityLog)
@@ -441,6 +470,14 @@ def get_activity_logs(
 
     if end_date:
         query = query.filter(ActivityLog.created_at <= end_date)
-
-    logs = query.order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit).all()
-    return logs
+        
+    total = query.count()
+    logs = query.order_by(ActivityLog.created_at.desc()).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": logs,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }

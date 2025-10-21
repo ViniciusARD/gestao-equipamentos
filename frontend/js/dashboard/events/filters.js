@@ -15,8 +15,8 @@ import {
     loadMyReservationsView
 } from '../views.js';
 
-// As funÃ§Ãµes precisam do appState, que serÃ¡ passado como argumento.
-export function applyAdminReservationsFilter(appState) {
+// As funções precisam do appState, que será passado como argumento.
+export function applyAdminReservationsFilter(appState, page = 1) {
     const token = appState.token;
     const activeStatusBtn = document.querySelector('.admin-status-filter-btn.btn-primary');
     const params = {
@@ -24,11 +24,12 @@ export function applyAdminReservationsFilter(appState) {
         status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         start_date: document.getElementById('reservationsStartDate').value,
         end_date: document.getElementById('reservationsEndDate').value,
+        page: page
     };
     loadManageReservationsView(token, params);
 }
 
-export function applyMyReservationsFilter(appState) {
+export function applyMyReservationsFilter(appState, page = 1) {
     const token = appState.token;
     const activeStatusBtn = document.querySelector('.status-filter-btn.btn-primary');
     const params = {
@@ -36,49 +37,56 @@ export function applyMyReservationsFilter(appState) {
         status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         start_date: document.getElementById('myReservationsStartDate').value,
         end_date: document.getElementById('myReservationsEndDate').value,
+        page: page
     };
     loadMyReservationsView(token, params);
 }
 
-export function applyUsersFilter(appState) {
+export function applyUsersFilter(appState, page = 1) {
     const token = appState.token;
     const activeRoleBtn = document.querySelector('.user-role-filter-btn.btn-primary');
     const params = {
         search: document.getElementById('usersSearchInput').value.trim(),
         role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
-        sector_id: document.getElementById('userSectorFilter').value
+        sector_id: document.getElementById('userSectorFilter').value,
+        page: page
     };
     loadManageUsersView(token, appState.currentUser.id, params);
 }
 
-export function applyViewUsersFilter(appState) {
+export function applyViewUsersFilter(appState, page = 1) {
     const token = appState.token;
     const activeRoleBtn = document.querySelector('.view-user-role-filter-btn.btn-primary');
     const params = {
         search: document.getElementById('viewUsersSearchInput').value.trim(),
         role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
-        sector_id: document.getElementById('viewUserSectorFilter').value
+        sector_id: document.getElementById('viewUserSectorFilter').value,
+        page: page
     };
     loadViewUsersView(token, params);
 }
 
-export function applyInventoryFilter(appState) {
+export function applyInventoryFilter(appState, page = 1) {
     const token = appState.token;
-    const searchTerm = document.getElementById('inventorySearchInput').value.trim();
-    const category = document.getElementById('inventoryCategoryFilter').value;
-    const activeAvailabilityBtn = document.querySelector('.inventory-availability-filter-btn.btn-primary');
-    const availability = activeAvailabilityBtn ? activeAvailabilityBtn.dataset.availability : 'all';
-    loadManageInventoryView(token, searchTerm, category, availability);
+    const params = {
+        search: document.getElementById('inventorySearchInput').value.trim(),
+        category: document.getElementById('inventoryCategoryFilter').value,
+        page: page
+    };
+    loadManageInventoryView(token, params);
 }
 
-export function applyEquipmentsFilter(appState) {
+export function applyEquipmentsFilter(appState, page = 1) {
     const token = appState.token;
-    const searchTerm = document.getElementById('equipmentsSearchInput').value.trim();
-    const category = document.getElementById('equipmentsCategoryFilter').value;
-    loadEquipmentsView(token, searchTerm, category);
+    const params = {
+        search: document.getElementById('equipmentsSearchInput').value.trim(),
+        category: document.getElementById('equipmentsCategoryFilter').value,
+        page: page
+    };
+    loadEquipmentsView(token, params);
 }
 
-export function applyLogsFilter(appState) {
+export function applyLogsFilter(appState, page = 1) {
     const token = appState.token;
     const params = {
         search: document.getElementById('logsSearchInput').value.trim(),
@@ -86,6 +94,7 @@ export function applyLogsFilter(appState) {
         user_id: document.getElementById('logsUserFilter').value,
         start_date: document.getElementById('logsStartDate').value,
         end_date: document.getElementById('logsEndDate').value,
+        page: page
     };
     loadSystemLogsView(token, params);
 }
@@ -102,8 +111,8 @@ export function applyAnalyticsFilter(appState) {
     loadAnalyticsDashboardView(token, params);
 }
 
-export function applySectorsFilter(appState) {
+export function applySectorsFilter(appState, page = 1) {
     const token = appState.token;
     const searchTerm = document.getElementById('sectorsSearchInput').value.trim();
-    loadManageSectorsView(token, searchTerm);
+    loadManageSectorsView(token, searchTerm, page);
 }

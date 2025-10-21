@@ -14,11 +14,11 @@ let charts = {
 
 // Função principal para carregar a view do painel
 export async function loadAnalyticsDashboardView(token, params = {}) {
-    // Busca dados para preencher os filtros
-    const [sectors, users, equipmentTypes] = await Promise.all([
-        apiFetch(`${API_URL}/sectors`, token),
-        apiFetch(`${API_URL}/admin/users`, token),
-        apiFetch(`${API_URL}/equipments/types`, token)
+    // CORREÇÃO: Busca todos os itens para os dropdowns de filtro, com a barra final na URL
+    const [sectorsData, usersData, equipmentTypesData] = await Promise.all([
+        apiFetch(`${API_URL}/sectors/?size=1000`, token),
+        apiFetch(`${API_URL}/admin/users?size=1000`, token),
+        apiFetch(`${API_URL}/equipments/types?size=1000`, token)
     ]);
 
     renderView(`
@@ -45,21 +45,21 @@ export async function loadAnalyticsDashboardView(token, params = {}) {
                         <label for="analyticsSectorFilter" class="form-label small">Setor</label>
                         <select id="analyticsSectorFilter" class="form-select">
                             <option value="">Todos</option>
-                            ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            ${sectorsData.items.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-lg-2 col-md-4">
                         <label for="analyticsEquipmentTypeFilter" class="form-label small">Equipamento</label>
                         <select id="analyticsEquipmentTypeFilter" class="form-select">
                             <option value="">Todos</option>
-                            ${equipmentTypes.map(et => `<option value="${et.id}" ${params.equipment_type_id == et.id ? 'selected' : ''}>${et.name}</option>`).join('')}
+                            ${equipmentTypesData.items.map(et => `<option value="${et.id}" ${params.equipment_type_id == et.id ? 'selected' : ''}>${et.name}</option>`).join('')}
                         </select>
                     </div>
                      <div class="col-lg-2 col-md-4">
                         <label for="analyticsUserFilter" class="form-label small">Usuário</label>
                         <select id="analyticsUserFilter" class="form-select">
                             <option value="">Todos</option>
-                             ${users.map(u => `<option value="${u.id}" ${params.user_id == u.id ? 'selected' : ''}>${u.username}</option>`).join('')}
+                             ${usersData.items.map(u => `<option value="${u.id}" ${params.user_id == u.id ? 'selected' : ''}>${u.username}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-12 d-flex justify-content-end">

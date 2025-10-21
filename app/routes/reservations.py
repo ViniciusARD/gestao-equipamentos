@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List, Optional
 from datetime import datetime, timezone
 import asyncio
+import math
 
 from app.database import get_db, SessionLocal
 from app.models.reservation import Reservation
@@ -13,6 +14,7 @@ from app.models.equipment_unit import EquipmentUnit
 from app.models.equipment_type import EquipmentType
 from app.models.user import User
 from app.schemas.reservation import ReservationCreate, ReservationOut
+from app.schemas.pagination import Page
 from app.security import get_current_user, get_current_requester_user
 from app.email_utils import send_reservation_pending_email, send_new_reservation_to_managers_email
 from app.logging_utils import create_log
@@ -101,14 +103,16 @@ def create_reservation(
 
     return new_reservation
 
-@router.get("/my-reservations", response_model=List[ReservationOut])
+@router.get("/my-reservations", response_model=Page[ReservationOut])
 def get_my_reservations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_requester_user),
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None)
+    end_date: Optional[datetime] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100)
 ):
     """Retorna uma lista de todas as reservas feitas pelo usuário autenticado."""
     query = (
@@ -139,9 +143,16 @@ def get_my_reservations(
     if end_date:
         query = query.filter(Reservation.start_time <= end_date)
 
-
-    reservations = query.order_by(Reservation.start_time.desc()).all()
-    return reservations
+    total = query.count()
+    reservations = query.order_by(Reservation.start_time.desc()).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": reservations,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size)
+    }
 
 
 @router.get("/upcoming", response_model=List[ReservationOut])

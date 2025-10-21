@@ -193,3 +193,26 @@ export async function openUnitHistoryModal(unitId, token) {
         modalBody.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }
+
+export function renderPaginationControls(data, actionPrefix) {
+    if (data.pages <= 1) return '';
+
+    return `
+        <nav class="mt-4 d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Mostrando ${data.items.length} de ${data.total} itens
+            </small>
+            <ul class="pagination mb-0">
+                <li class="page-item ${data.page === 1 ? 'disabled' : ''}">
+                    <a class="page-link pagination-btn" href="#" data-page="${data.page - 1}" data-action-prefix="${actionPrefix}">Anterior</a>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">${data.page} de ${data.pages}</span>
+                </li>
+                <li class="page-item ${data.page === data.pages ? 'disabled' : ''}">
+                    <a class="page-link pagination-btn" href="#" data-page="${data.page + 1}" data-action-prefix="${actionPrefix}">Próxima</a>
+                </li>
+            </ul>
+        </nav>
+    `;
+}

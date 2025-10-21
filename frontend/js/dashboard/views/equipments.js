@@ -1,11 +1,11 @@
 // js/dashboard/views/equipments.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { renderView, renderStatusBadge } from '../ui.js';
+import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.js';
 
-export async function loadEquipmentsView(token, searchTerm = '', categoryFilter = 'all') {
+export async function loadEquipmentsView(token, params = {}) {
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
-    const categories = [...new Set(allTypesForCategories.map(type => type.category))].sort();
+    const categories = [...new Set(allTypesForCategories.items.map(type => type.category))].sort();
 
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -14,37 +14,37 @@ export async function loadEquipmentsView(token, searchTerm = '', categoryFilter 
         <div class="row mb-4">
             <div class="col-md-8">
                 <div class="input-group">
-                    <input type="search" id="equipmentsSearchInput" class="form-control" placeholder="Buscar por nome, categoria ou descrição..." value="${searchTerm}">
+                    <input type="search" id="equipmentsSearchInput" class="form-control" placeholder="Buscar por nome, categoria ou descrição..." value="${params.search || ''}">
                     <button class="btn btn-outline-secondary" type="button" id="searchEquipmentsBtn"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-4">
                 <select id="equipmentsCategoryFilter" class="form-select">
                     <option value="all">Todas as categorias</option>
-                    ${categories.map(cat => `<option value="${cat}" ${categoryFilter === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                    ${categories.map(cat => `<option value="${cat}" ${params.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
                 </select>
             </div>
         </div>
         <div id="listContainer" class="row"></div>
+        <div id="paginationContainer"></div>
     `);
     const container = document.getElementById('listContainer');
     container.innerHTML = '<div class="col-12 text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
         const url = new URL(`${API_URL}/equipments/types`);
-        if (searchTerm) {
-            url.searchParams.append('search', searchTerm);
-        }
-        if (categoryFilter && categoryFilter !== 'all') {
-            url.searchParams.append('category', categoryFilter);
-        }
-        const types = await apiFetch(url, token);
+        url.searchParams.append('page', params.page || 1);
+        if (params.search) url.searchParams.append('search', params.search);
+        if (params.category && params.category !== 'all') url.searchParams.append('category', params.category);
+        
+        const data = await apiFetch(url, token);
 
-        if (types.length === 0) {
-            container.innerHTML = '<p class="text-muted text-center">Nenhum equipamento encontrado com os filtros aplicados.</p>';
+        if (data.items.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center col-12">Nenhum equipamento encontrado com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
-        container.innerHTML = types.map(type => `
+        container.innerHTML = data.items.map(type => `
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body d-flex flex-column">
@@ -61,6 +61,8 @@ export async function loadEquipmentsView(token, searchTerm = '', categoryFilter 
                 </div>
             </div>
         `).join('');
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'equipments');
+
     } catch (e) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }

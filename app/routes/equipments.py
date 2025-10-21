@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, subqueryload, joinedload
 from sqlalchemy import func, case, or_
 from typing import List, Optional
+import math
 
 from app.database import get_db
 from app.models.equipment_type import EquipmentType
@@ -16,6 +17,7 @@ from app.schemas.equipment import (
     EquipmentUnitCreate, EquipmentUnitOut, EquipmentUnitUpdate,
     EquipmentTypeWithUnitsOut, EquipmentTypeStatsOut
 )
+from app.schemas.pagination import Page
 from app.schemas.unit_history import UnitHistoryOut
 from app.security import get_current_user, get_current_manager_user
 from app.logging_utils import create_log
@@ -47,17 +49,18 @@ def create_equipment_type(
 
     return new_type
 
-@router.get("/types", response_model=List[EquipmentTypeStatsOut])
+@router.get("/types", response_model=Page[EquipmentTypeStatsOut])
 def list_equipment_types(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     search: Optional[str] = Query(None, alias="search"),
     category: Optional[str] = Query(None, alias="category"),
-    availability: Optional[str] = Query(None, alias="availability") # Novo filtro
+    availability: Optional[str] = Query(None, alias="availability"),
+    page: int = Query(1, ge=1),
+    size: int = Query(9, ge=1, le=1000)
 ):
     """(Usuários Autenticados) Lista todos os tipos de equipamentos com estatísticas de unidades."""
     
-    # Subqueries para contagem de unidades por status
     total_sub = func.count(EquipmentUnit.id).label("total_units")
     available_sub = func.sum(case((EquipmentUnit.status == 'available', 1), else_=0)).label("available_units")
     reserved_sub = func.sum(case((EquipmentUnit.status.in_(['reserved', 'pending']), 1), else_=0)).label("reserved_units")
@@ -94,20 +97,28 @@ def list_equipment_types(
     elif availability == "unavailable":
         query = query.having(available_sub == 0)
 
-    results = query.order_by(EquipmentType.name).all()
+    total = query.count()
+    results = query.order_by(EquipmentType.name).offset((page - 1) * size).limit(size).all()
     
     stats_out = []
-    for type_obj, total, available, reserved, maintenance in results:
+    for type_obj, total_units, available, reserved, maintenance in results:
         stats_out.append(
             EquipmentTypeStatsOut.model_validate({
                 **type_obj.__dict__,
-                "total_units": total or 0,
+                "total_units": total_units or 0,
                 "available_units": available or 0,
                 "reserved_units": reserved or 0,
                 "maintenance_units": maintenance or 0
             })
         )
-    return stats_out
+    
+    return {
+        "items": stats_out,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if size > 0 else 0
+    }
 
 
 @router.get("/types/{type_id}", response_model=EquipmentTypeWithUnitsOut)
@@ -120,7 +131,6 @@ def get_equipment_type_with_units(type_id: int, db: Session = Depends(get_db), c
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
 
-    # Anexa a reserva ativa a cada unidade para fácil acesso no frontend
     for unit in db_type.units:
         active_reservation = next(
             (r for r in unit.reservations if r.status in ['approved', 'pending']),
@@ -275,7 +285,6 @@ def update_equipment_unit(
 
     update_data = unit_update.dict(exclude_unset=True)
 
-    # Checa unicidade antes de atualizar
     if 'identifier_code' in update_data and update_data['identifier_code'] != db_unit.identifier_code:
         if db.query(EquipmentUnit).filter(EquipmentUnit.identifier_code == update_data['identifier_code']).first():
             raise HTTPException(status_code=409, detail=f"O código de identificação '{update_data['identifier_code']}' já está em uso.")

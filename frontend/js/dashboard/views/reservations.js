@@ -1,7 +1,7 @@
 // js/dashboard/views/reservations.js
 
 import { API_URL, apiFetch } from '../api.js';
-import { renderView, renderStatusBadge } from '../ui.js';
+import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.js';
 
 export async function loadMyReservationsView(token, params = {}) {
     const statusFilters = [
@@ -44,6 +44,7 @@ export async function loadMyReservationsView(token, params = {}) {
             </div>
         </div>
         <div id="listContainer" class="table-responsive"></div>
+        <div id="paginationContainer"></div>
     `);
     
     const container = document.getElementById('listContainer');
@@ -51,15 +52,17 @@ export async function loadMyReservationsView(token, params = {}) {
 
     try {
         const url = new URL(`${API_URL}/reservations/my-reservations`);
+        url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
         if (params.status && params.status !== 'all') url.searchParams.append('status', params.status);
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
         
-        const reservations = await apiFetch(url, token);
+        const data = await apiFetch(url, token);
         
-        if (reservations.length === 0) {
+        if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhuma reserva encontrada com os filtros aplicados.</p>';
+            document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
         container.innerHTML = `
@@ -75,7 +78,7 @@ export async function loadMyReservationsView(token, params = {}) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${reservations.map(res => `
+                    ${data.items.map(res => `
                         <tr>
                             <td>${res.equipment_unit.equipment_type.name}</td>
                             <td>${res.equipment_unit.identifier_code || 'N/A'}</td>
@@ -88,6 +91,7 @@ export async function loadMyReservationsView(token, params = {}) {
                 </tbody>
             </table>
         `;
+        document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'my-reservations');
     } catch (e) {
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
