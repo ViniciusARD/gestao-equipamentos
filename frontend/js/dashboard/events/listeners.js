@@ -25,7 +25,8 @@ import {
     applyEquipmentsFilter,
     applyLogsFilter,
     applyAnalyticsFilter,
-    applySectorsFilter
+    applySectorsFilter,
+    applyViewUsersFilter
 } from './filters.js';
 
 import {
@@ -116,6 +117,7 @@ async function handleGlobalClick(event, appState) {
         '#applyReservationsFilterBtn': () => applyAdminReservationsFilter(appState),
         '#applyMyReservationsFilterBtn': () => applyMyReservationsFilter(appState),
         '#searchUsersBtn': () => applyUsersFilter(appState),
+        '#searchViewUsersBtn': () => applyViewUsersFilter(appState),
         '#searchInventoryBtn': () => applyInventoryFilter(appState),
         '#searchSectorsBtn': () => applySectorsFilter(appState),
         '#applyLogsFilterBtn': () => applyLogsFilter(appState),
@@ -131,7 +133,7 @@ async function handleGlobalClick(event, appState) {
     }
     
     // Filtros de grupo de botões (com lógica de classe)
-    if (target.matches('.status-filter-btn, .admin-status-filter-btn, .inventory-availability-filter-btn, .user-role-filter-btn, .unit-status-filter-btn')) {
+    if (target.matches('.status-filter-btn, .admin-status-filter-btn, .inventory-availability-filter-btn, .user-role-filter-btn, .view-user-role-filter-btn, .unit-status-filter-btn')) {
         const groupSelector = target.className.split(' ').find(cls => cls.endsWith('-btn'));
         document.querySelectorAll(`.${groupSelector}`).forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
         target.classList.replace('btn-outline-primary', 'btn-primary');
@@ -140,6 +142,7 @@ async function handleGlobalClick(event, appState) {
         if (target.matches('.admin-status-filter-btn')) applyAdminReservationsFilter(appState);
         if (target.matches('.inventory-availability-filter-btn')) applyInventoryFilter(appState);
         if (target.matches('.user-role-filter-btn')) applyUsersFilter(appState);
+        if (target.matches('.view-user-role-filter-btn')) applyViewUsersFilter(appState);
 
         if (target.matches('.unit-status-filter-btn')) {
             const container = document.getElementById('units-view-container');
@@ -162,6 +165,9 @@ function handleGlobalChange(event, appState) {
     }
     if (target.matches('#userSectorFilter')) {
         applyUsersFilter(appState);
+    }
+    if (target.matches('#viewUserSectorFilter')) {
+        applyViewUsersFilter(appState);
     }
 }
 
@@ -189,6 +195,7 @@ function handleGlobalKeyUp(event, appState) {
     const keyupActions = {
         '#reservationsSearchInput': () => applyAdminReservationsFilter(appState),
         '#usersSearchInput': () => applyUsersFilter(appState),
+        '#viewUsersSearchInput': () => applyViewUsersFilter(appState),
         '#equipmentsSearchInput': () => applyEquipmentsFilter(appState),
         '#myReservationsSearchInput': () => applyMyReservationsFilter(appState),
         '#inventorySearchInput': () => applyInventoryFilter(appState),

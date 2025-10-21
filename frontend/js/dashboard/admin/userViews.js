@@ -230,12 +230,12 @@ export async function loadViewUsersView(token, params = {}) {
         <div class="row mb-3">
             <div class="col-lg-8">
                 <div class="input-group">
-                    <input type="search" id="usersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
-                    <button class="btn btn-outline-secondary" type="button" id="searchUsersBtn"><i class="bi bi-search"></i></button>
+                    <input type="search" id="viewUsersSearchInput" class="form-control" placeholder="Buscar por nome ou email..." value="${params.search || ''}">
+                    <button class="btn btn-outline-secondary" type="button" id="searchViewUsersBtn"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-lg-4">
-                <select id="userSectorFilter" class="form-select">
+                <select id="viewUserSectorFilter" class="form-select">
                     <option value="">Todos os setores</option>
                     ${sectors.map(s => `<option value="${s.id}" ${params.sector_id == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                 </select>
@@ -245,7 +245,7 @@ export async function loadViewUsersView(token, params = {}) {
             <div class="col-12">
                 <div class="btn-group w-100" role="group">
                     ${roleFilters.map(filter => `
-                        <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
+                        <button type="button" class="btn ${(params.role || 'all') === filter.key ? 'btn-primary' : 'btn-outline-primary'} view-user-role-filter-btn" data-role="${filter.key}">${filter.text}</button>
                     `).join('')}
                 </div>
             </div>

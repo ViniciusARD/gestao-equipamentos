@@ -6,7 +6,8 @@ import {
     loadManageInventoryView,
     loadSystemLogsView,
     loadManageSectorsView,
-    loadAnalyticsDashboardView
+    loadAnalyticsDashboardView,
+    loadViewUsersView
 } from '../admin.js';
 
 import {
@@ -48,6 +49,17 @@ export function applyUsersFilter(appState) {
         sector_id: document.getElementById('userSectorFilter').value
     };
     loadManageUsersView(token, appState.currentUser.id, params);
+}
+
+export function applyViewUsersFilter(appState) {
+    const token = appState.token;
+    const activeRoleBtn = document.querySelector('.view-user-role-filter-btn.btn-primary');
+    const params = {
+        search: document.getElementById('viewUsersSearchInput').value.trim(),
+        role: activeRoleBtn ? activeRoleBtn.dataset.role : 'all',
+        sector_id: document.getElementById('viewUserSectorFilter').value
+    };
+    loadViewUsersView(token, params);
 }
 
 export function applyInventoryFilter(appState) {
