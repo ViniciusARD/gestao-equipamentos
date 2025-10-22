@@ -32,9 +32,7 @@ import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.j
  */
 export async function loadEquipmentsView(token, params = {}) {
     // Busca todos os tipos de equipamento para extrair as categorias e popular o filtro.
-    const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
-    // Cria uma lista de categorias únicas e ordenadas.
-    const categories = [...new Set(allTypesForCategories.items.map(type => type.category))].sort();
+    const categories = await apiFetch(`${API_URL}/equipments/types/categories`, token);
 
     // Renderiza o layout principal da página, incluindo os filtros.
     renderView(`

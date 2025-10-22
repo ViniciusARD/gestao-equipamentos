@@ -50,6 +50,8 @@ export function applyAdminReservationsFilter(appState, page = 1) {
         status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         start_date: document.getElementById('reservationsStartDate').value,
         end_date: document.getElementById('reservationsEndDate').value,
+        sort_by: document.getElementById('reservationsSortBy').value,
+        sort_dir: document.getElementById('reservationsSortDir').value,
         page: page
     };
     // Chama a função que recarrega a vista com os novos filtros.
@@ -69,6 +71,8 @@ export function applyMyReservationsFilter(appState, page = 1) {
         status: activeStatusBtn ? activeStatusBtn.dataset.status : 'all',
         start_date: document.getElementById('myReservationsStartDate').value,
         end_date: document.getElementById('myReservationsEndDate').value,
+        sort_by: document.getElementById('myReservationsSortBy').value,
+        sort_dir: document.getElementById('myReservationsSortDir').value,
         page: page
     };
     loadMyReservationsView(token, params);

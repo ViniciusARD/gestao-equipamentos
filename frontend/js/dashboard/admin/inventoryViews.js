@@ -92,8 +92,7 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
  */
 export async function loadManageInventoryView(token, params = {}) {
     // Busca todas as categorias existentes para popular o dropdown de filtro.
-    const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
-    const categories = [...new Set(allTypesForCategories.items.map(type => type.category))].sort();
+    const categories = await apiFetch(`${API_URL}/equipments/types/categories`, token);
 
     // Renderiza o layout da página, incluindo os filtros.
     renderView(`

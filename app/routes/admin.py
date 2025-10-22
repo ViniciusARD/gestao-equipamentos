@@ -112,6 +112,8 @@ def list_all_reservations(
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
+    sort_by: Optional[str] = Query('start_time'),
+    sort_dir: Optional[str] = Query('desc'),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=1000)
 ):
@@ -138,8 +140,23 @@ def list_all_reservations(
     if start_date: query = query.filter(Reservation.end_time >= start_date)
     if end_date: query = query.filter(Reservation.start_time <= end_date)
 
+    # Lógica de ordenação
+    sort_column_map = {
+        'user': User.username,
+        'equipment': EquipmentType.name,
+        'status': Reservation.status,
+        'start_time': Reservation.start_time,
+        'end_time': Reservation.end_time,
+        'created_at': Reservation.created_at
+    }
+    sort_column = sort_column_map.get(sort_by, Reservation.start_time)
+    if sort_dir == 'desc':
+        query = query.order_by(desc(sort_column))
+    else:
+        query = query.order_by(asc(sort_column))
+
     total = query.count()
-    reservations = query.order_by(Reservation.start_time.desc()).offset((page - 1) * size).limit(size).all()
+    reservations = query.offset((page - 1) * size).limit(size).all()
     
     return {"items": reservations, "total": total, "page": page, "size": size, "pages": math.ceil(total / size)}
 

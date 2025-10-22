@@ -33,8 +33,17 @@ export async function loadMyReservationsView(token, params = {}) {
         { key: 'all', text: 'Todas' },
         { key: 'pending', text: 'Pendentes' },
         { key: 'approved', text: 'Aprovadas' },
+        { key: 'overdue', text: 'Atrasadas' },
         { key: 'returned', text: 'Devolvidas' },
         { key: 'rejected', text: 'Rejeitadas' }
+    ];
+
+    const sortOptions = [
+        { key: 'start_time', text: 'Início da Reserva' },
+        { key: 'end_time', text: 'Fim da Reserva' },
+        { key: 'created_at', text: 'Data de Solicitação' },
+        { key: 'equipment', text: 'Equipamento' },
+        { key: 'status', text: 'Status' }
     ];
 
     // Renderiza a estrutura HTML principal da página, incluindo os formulários de filtro.
@@ -55,15 +64,28 @@ export async function loadMyReservationsView(token, params = {}) {
                             `).join('')}
                         </div>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label for="myReservationsStartDate" class="form-label small">Período de</label>
                         <input type="date" id="myReservationsStartDate" class="form-control" value="${params.start_date || ''}">
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label for="myReservationsEndDate" class="form-label small">Até</label>
                         <input type="date" id="myReservationsEndDate" class="form-control" value="${params.end_date || ''}">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
+                    <div class="col-md-3">
+                        <label for="myReservationsSortBy" class="form-label small">Ordenar por</label>
+                        <select id="myReservationsSortBy" class="form-select">
+                            ${sortOptions.map(opt => `<option value="${opt.key}" ${params.sort_by === opt.key ? 'selected' : ''}>${opt.text}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="myReservationsSortDir" class="form-label small">Direção</label>
+                        <select id="myReservationsSortDir" class="form-select">
+                            <option value="desc" ${params.sort_dir === 'desc' ? 'selected' : ''}>Descendente</option>
+                            <option value="asc" ${params.sort_dir === 'asc' ? 'selected' : ''}>Ascendente</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
                          <button class="btn btn-primary w-100" id="applyMyReservationsFilterBtn"><i class="bi bi-funnel-fill"></i></button>
                     </div>
                 </div>
@@ -85,6 +107,8 @@ export async function loadMyReservationsView(token, params = {}) {
         if (params.status && params.status !== 'all') url.searchParams.append('status', params.status);
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
+        if (params.sort_by) url.searchParams.append('sort_by', params.sort_by);
+        if (params.sort_dir) url.searchParams.append('sort_dir', params.sort_dir);
         
         // Busca os dados paginados das reservas.
         const data = await apiFetch(url, token);

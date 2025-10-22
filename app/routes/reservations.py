@@ -15,7 +15,7 @@ Dependências:
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, desc, asc
 from typing import List, Optional
 from datetime import datetime, timezone
 import asyncio
@@ -136,6 +136,8 @@ def get_my_reservations(
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
+    sort_by: Optional[str] = Query('start_time'),
+    sort_dir: Optional[str] = Query('desc'),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)
 ):
@@ -163,7 +165,10 @@ def get_my_reservations(
             )
         )
     if status and status != "all":
-        query = query.filter(Reservation.status == status)
+        if status == "overdue":
+            query = query.filter(Reservation.status == 'approved', Reservation.end_time < datetime.now(timezone.utc))
+        else:
+            query = query.filter(Reservation.status == status)
 
     # Aplica filtros de período, se fornecidos
     if start_date:
@@ -171,10 +176,25 @@ def get_my_reservations(
     if end_date:
         query = query.filter(Reservation.start_time <= end_date)
 
+    # Lógica de ordenação
+    sort_column_map = {
+        'equipment': EquipmentType.name,
+        'code': EquipmentUnit.identifier_code,
+        'status': Reservation.status,
+        'start_time': Reservation.start_time,
+        'end_time': Reservation.end_time,
+        'created_at': Reservation.created_at
+    }
+    sort_column = sort_column_map.get(sort_by, Reservation.start_time)
+    if sort_dir == 'desc':
+        query = query.order_by(desc(sort_column))
+    else:
+        query = query.order_by(asc(sort_column))
+
     # Calcula o total de itens para a paginação
     total = query.count()
     # Executa a consulta com ordenação, paginação e retorna os resultados
-    reservations = query.order_by(Reservation.start_time.desc()).offset((page - 1) * size).limit(size).all()
+    reservations = query.offset((page - 1) * size).limit(size).all()
     
     return {
         "items": reservations,

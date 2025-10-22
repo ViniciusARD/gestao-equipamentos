@@ -62,6 +62,16 @@ def create_equipment_type(
     create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' criou o tipo de equipamento '{new_type.name}' (ID: {new_type.id}).")
     return new_type
 
+@router.get("/types/categories", response_model=List[str])
+def list_equipment_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """(Usuários Autenticados) Retorna uma lista de todas as categorias de equipamentos únicas."""
+    categories = db.query(EquipmentType.category).distinct().order_by(EquipmentType.category).all()
+    return [category[0] for category in categories]
+
+
 @router.get("/types", response_model=Page[EquipmentTypeStatsOut])
 def list_equipment_types(
     db: Session = Depends(get_db),
