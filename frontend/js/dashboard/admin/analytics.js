@@ -1,9 +1,34 @@
 // js/dashboard/admin/analytics.js
 
+/**
+ * Módulo do Painel de Análise (Analytics).
+ *
+ * Este script é responsável por carregar e renderizar a view de análise
+ * de dados para administradores. Ele constrói uma interface com filtros
+ * avançados (data, setor, equipamento, etc.) e utiliza a biblioteca Chart.js
+ * para visualizar as estatísticas agregadas retornadas pela API.
+ *
+ * Funcionalidades:
+ * - `loadAnalyticsDashboardView()`: Monta a estrutura da página de análise,
+ * incluindo os filtros, e dispara a busca e renderização dos dados.
+ * - `fetchAndRenderCharts()`: Busca os dados de estatísticas do endpoint
+ * `/dashboard/stats` e popula tanto os cards de KPIs quanto os gráficos.
+ * - `renderChart()`: Uma função auxiliar para criar ou atualizar instâncias
+ * de gráficos (barras, pizza, linha, etc.), garantindo que os gráficos
+ * sejam destruídos e recriados corretamente ao aplicar novos filtros.
+ *
+ * Dependências:
+ * - `api.js`: Para a comunicação com a API.
+ * - `ui.js`: Para a renderização da view principal.
+ * - Chart.js: Para a criação dos gráficos.
+ */
+
+
 import { API_URL, apiFetch } from '../api.js';
 import { renderView } from '../ui.js';
 
-// Variáveis para armazenar as instâncias dos gráficos
+// Variáveis para armazenar as instâncias dos gráficos, permitindo que sejam
+// destruídas e recriadas quando os filtros são aplicados.
 let charts = {
     equipmentsChart: null,
     sectorsChart: null,
@@ -12,15 +37,21 @@ let charts = {
     reservationsByDayChart: null
 };
 
-// Função principal para carregar a view do painel
+/**
+ * Carrega a view principal do painel de análise.
+ * @param {string} token - O token de autenticação do usuário.
+ * @param {object} [params={}] - Os parâmetros de filtro a serem aplicados.
+ */
 export async function loadAnalyticsDashboardView(token, params = {}) {
-    // CORREÇÃO: Busca todos os itens para os dropdowns de filtro, com a barra final na URL
+    // Busca os dados para preencher os dropdowns de filtro de forma paralela.
+    // O `size=1000` é uma forma de garantir que todos os itens sejam retornados.
     const [sectorsData, usersData, equipmentTypesData] = await Promise.all([
         apiFetch(`${API_URL}/sectors/?size=1000`, token),
         apiFetch(`${API_URL}/admin/users?size=1000`, token),
         apiFetch(`${API_URL}/equipments/types?size=1000`, token)
     ]);
 
+    // Renderiza o layout HTML da página, incluindo os cards e os filtros.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Painel de Análise</h1>
@@ -72,13 +103,20 @@ export async function loadAnalyticsDashboardView(token, params = {}) {
             </div>
     `);
 
+    // Após renderizar a estrutura, busca os dados e desenha os gráficos.
     fetchAndRenderCharts(token, params);
 }
 
-// Busca os dados e renderiza os gráficos
+/**
+ * Busca os dados estatísticos da API e renderiza os cards e gráficos.
+ * @param {string} token - O token de autenticação.
+ * @param {object} [params={}] - Os parâmetros de filtro.
+ */
 async function fetchAndRenderCharts(token, params = {}) {
     const chartsContainer = document.getElementById('charts-container');
     const statsCardsContainer = document.getElementById('stats-cards');
+    
+    // Guarda o HTML dos placeholders dos gráficos para restaurá-lo após o carregamento.
     const originalHtml = `
         <div class="col-xl-6 mb-4">
             <div class="card h-100">
@@ -111,11 +149,13 @@ async function fetchAndRenderCharts(token, params = {}) {
             </div>
         </div>
     `;
+    // Exibe spinners de carregamento enquanto os dados são buscados.
     chartsContainer.innerHTML = '<div class="col-12 text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div><p>Carregando dados...</p></div>';
     statsCardsContainer.innerHTML = '<div class="col-12 text-center"><div class="spinner-border spinner-border-sm"></div></div>';
 
 
     try {
+        // Constrói a URL da API com os parâmetros de filtro.
         const url = new URL(`${API_URL}/dashboard/stats`);
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
@@ -123,11 +163,11 @@ async function fetchAndRenderCharts(token, params = {}) {
         if (params.equipment_type_id) url.searchParams.append('equipment_type_id', params.equipment_type_id);
         if (params.user_id) url.searchParams.append('user_id', params.user_id);
 
-
+        // Busca os dados da API.
         const data = await apiFetch(url.toString(), token);
-        chartsContainer.innerHTML = originalHtml; // Restaura o HTML com os canvas
+        chartsContainer.innerHTML = originalHtml; // Restaura o HTML com os elementos <canvas>.
 
-        // Renderiza os cards de estatísticas
+        // Renderiza os cards de estatísticas (KPIs).
         statsCardsContainer.innerHTML = `
             <div class="col-md-4 mb-4">
                 <div class="card text-white bg-primary h-100">
@@ -156,7 +196,7 @@ async function fetchAndRenderCharts(token, params = {}) {
         `;
 
 
-        // Renderiza cada gráfico
+        // Renderiza cada um dos gráficos com os dados obtidos.
         renderChart('equipmentsChart', 'bar', 'Nº de Reservas', data.top_equipments);
         renderChart('sectorsChart', 'pie', 'Nº de Reservas', data.top_sectors);
         renderChart('usersChart', 'bar', 'Nº de Reservas', data.top_users, { indexAxis: 'y' });
@@ -165,43 +205,52 @@ async function fetchAndRenderCharts(token, params = {}) {
 
 
     } catch (e) {
+        // Em caso de erro, exibe uma mensagem de falha.
         chartsContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">${e.message}</div></div>`;
         statsCardsContainer.innerHTML = '';
     }
 }
 
-// Função auxiliar para criar/atualizar um gráfico
+/**
+ * Função auxiliar para criar ou atualizar um gráfico usando Chart.js.
+ * @param {string} canvasId - O ID do elemento <canvas> onde o gráfico será renderizado.
+ * @param {string} type - O tipo de gráfico (ex: 'bar', 'pie', 'line').
+ * @param {string} label - O rótulo para o conjunto de dados (dataset).
+ * @param {Array<object>} data - O array de dados, onde cada objeto tem `name` e `count`.
+ * @param {object} [extraOptions={}] - Opções adicionais para a configuração do Chart.js.
+ */
 function renderChart(canvasId, type, label, data, extraOptions = {}) {
     const ctx = document.getElementById(canvasId).getContext('2d');
     const labels = data.map(item => item.name);
     const values = data.map(item => item.count);
     
-    // Destrói o gráfico anterior se ele existir
+    // Destrói a instância do gráfico anterior se ela existir. Isso é crucial
+    // para evitar sobreposição e problemas de memória ao reaplicar filtros.
     if (charts[canvasId]) {
         charts[canvasId].destroy();
     }
     
     const scalesOptions = {};
     if (type === 'bar' || type === 'line') {
-        // Se for um gráfico de barras com eixo y (padrão)
+        // Garante que os eixos de gráficos de barras e linhas exibam apenas números inteiros.
         if (extraOptions.indexAxis !== 'y') {
             scalesOptions.y = {
                 ticks: {
-                    stepSize: 1, // Garante que o eixo Y só mostre inteiros
+                    stepSize: 1, 
                     beginAtZero: true
                 }
             };
-        } else { // Se for um gráfico de barras com eixo x (barras horizontais)
+        } else { // Para barras horizontais.
              scalesOptions.x = {
                 ticks: {
-                    stepSize: 1, // Garante que o eixo X só mostre inteiros
+                    stepSize: 1,
                     beginAtZero: true
                 }
             };
         }
     }
 
-
+    // Cria uma nova instância do gráfico e a armazena na variável global `charts`.
     charts[canvasId] = new Chart(ctx, {
         type: type,
         data: {
@@ -209,7 +258,7 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
             datasets: [{
                 label: label,
                 data: values,
-                backgroundColor: [
+                backgroundColor: [ // Paleta de cores padrão
                     'rgba(54, 162, 235, 0.7)',
                     'rgba(255, 99, 132, 0.7)',
                     'rgba(75, 192, 192, 0.7)',
@@ -218,7 +267,7 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
                     'rgba(255, 159, 64, 0.7)',
                     'rgba(201, 203, 207, 0.7)'
                 ],
-                borderColor: [
+                borderColor: [ // Cores das bordas
                     'rgba(54, 162, 235, 1)',
                     'rgba(255, 99, 132, 1)',
                     'rgba(75, 192, 192, 1)',
@@ -233,8 +282,8 @@ function renderChart(canvasId, type, label, data, extraOptions = {}) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: scalesOptions, // Aplica as opções de escala
-            ...extraOptions
+            scales: scalesOptions, // Aplica as opções de escala (eixos)
+            ...extraOptions // Mescla quaisquer outras opções personalizadas
         }
     });
 }

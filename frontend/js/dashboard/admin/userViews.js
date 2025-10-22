@@ -1,9 +1,44 @@
 // js/dashboard/admin/userViews.js
 
+/**
+ * Módulo para as Views de Gerenciamento de Usuários e Conteúdo Relacionado.
+ *
+ * Este script é responsável por carregar e renderizar as várias
+ * visualizações (views) que um gerente ou administrador utiliza para gerenciar
+ * o sistema. Isso inclui as telas para gerir reservas, gerir utilizadores,
+ * visualizar logs do sistema e gerir setores.
+ *
+ * Funcionalidades:
+ * - `openUserHistoryModal()`: Abre um modal para exibir o histórico de reservas
+ * de um utilizador específico.
+ * - `loadManageReservationsView()`: Carrega a página de gerenciamento de todas as
+ * reservas do sistema, com filtros avançados.
+ * - `loadManageUsersView()`: Carrega a página de gerenciamento de todos os
+ * utilizadores, disponível para administradores, com filtros e ações completas.
+ * - `loadViewUsersView()`: Carrega uma versão de "apenas visualização" da página de
+ * utilizadores, destinada a gerentes.
+ * - `loadSystemLogsView()`: Carrega a página para visualização dos logs de
+ * atividade do sistema.
+ * - `loadManageSectorsView()`: Carrega a página para criar, editar e deletar setores.
+ *
+ * Dependências:
+ * - `api.js`: Para comunicação com a API.
+ * - `ui.js`: Para renderizar a view principal e componentes como badges e paginação.
+ * - `renderers.js`: Para funções que geram HTML para partes dinâmicas, como os
+ * botões de ação.
+ */
+
+
 import { API_URL, apiFetch } from '../api.js';
 import { renderView, renderLogLevelBadge, renderStatusBadge, renderRoleBadge, renderPaginationControls } from '../ui.js';
 import { renderAdminReservationActions, renderUserActions, renderManagerUserActions } from './renderers.js';
 
+/**
+ * Abre um modal e exibe o histórico de reservas de um utilizador específico.
+ * @param {number} userId - O ID do utilizador cujo histórico será visualizado.
+ * @param {string} userName - O nome do utilizador para exibir no título do modal.
+ * @param {string} token - O token de autenticação.
+ */
 export async function openUserHistoryModal(userId, userName, token) {
     const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
     const modalTitle = document.getElementById('userHistoryModalLabel');
@@ -14,13 +49,14 @@ export async function openUserHistoryModal(userId, userName, token) {
     modal.show();
 
     try {
-        // A paginação não é necessária aqui, pois é um modal com histórico
+        // Busca o histórico de reservas do utilizador na API.
         const history = await apiFetch(`${API_URL}/admin/users/${userId}/history`, token);
         if (history.length === 0) {
             modalBody.innerHTML = '<p class="text-muted">Nenhuma reserva encontrada para este usuário.</p>';
             return;
         }
 
+        // Monta e exibe a tabela com o histórico de reservas.
         modalBody.innerHTML = `
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
@@ -52,8 +88,13 @@ export async function openUserHistoryModal(userId, userName, token) {
     }
 }
 
-
+/**
+ * Carrega a view de gerenciamento de todas as reservas do sistema.
+ * @param {string} token - O token de autenticação.
+ * @param {object} [params={}] - Os parâmetros de filtro (pesquisa, status, datas, etc.).
+ */
 export async function loadManageReservationsView(token, params = {}) {
+    // Define os botões de filtro de status.
     const statusFilters = [
         { key: 'all', text: 'Todas' },
         { key: 'pending', text: 'Pendentes' },
@@ -63,6 +104,7 @@ export async function loadManageReservationsView(token, params = {}) {
         { key: 'rejected', text: 'Rejeitadas' }
     ];
 
+    // Renderiza o layout da página, incluindo a área de filtros.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerir Reservas</h1>
@@ -101,6 +143,7 @@ export async function loadManageReservationsView(token, params = {}) {
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
+        // Constrói a URL da API com os parâmetros de filtro e paginação.
         const url = new URL(`${API_URL}/admin/reservations`);
         url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
@@ -114,6 +157,7 @@ export async function loadManageReservationsView(token, params = {}) {
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Renderiza a tabela de reservas.
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
@@ -138,7 +182,14 @@ export async function loadManageReservationsView(token, params = {}) {
     }
 }
 
+/**
+ * Carrega a view de gerenciamento de utilizadores (função de administrador).
+ * @param {string} token - O token de autenticação.
+ * @param {number} currentUserId - O ID do administrador logado (para desabilitar auto-ações).
+ * @param {object} [params={}] - Os parâmetros de filtro.
+ */
 export async function loadManageUsersView(token, currentUserId, params = {}) {
+    // Definições para os filtros da UI
     const roleFilters = [
         { key: 'all', text: 'Todos' },
         { key: 'user', text: 'Usuários' },
@@ -146,13 +197,11 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
         { key: 'manager', text: 'Gerentes' },
         { key: 'admin', text: 'Admins' }
     ];
-
     const statusFilters = [
         { key: 'all', text: 'Todos' },
         { key: 'active', text: 'Ativos' },
         { key: 'inactive', text: 'Inativos' }
     ];
-    
     const sortOptions = [
         { key: 'id', text: 'ID' },
         { key: 'username', text: 'Usuário' },
@@ -162,8 +211,10 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
         { key: 'status', text: 'Status' }
     ];
 
+    // Busca os setores para popular o dropdown de filtro.
     const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
 
+    // Renderiza o layout da página com todos os filtros.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerir Usuários</h1>
@@ -223,6 +274,7 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
+        // Constrói a URL da API com todos os parâmetros de filtro, ordenação e paginação.
         const url = new URL(`${API_URL}/admin/users`);
         url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
@@ -238,6 +290,7 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Renderiza a tabela de utilizadores.
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
@@ -264,7 +317,15 @@ export async function loadManageUsersView(token, currentUserId, params = {}) {
     }
 }
 
+/**
+ * Carrega a view de "apenas visualização" de utilizadores (função de gerente).
+ * A estrutura é idêntica à `loadManageUsersView`, mas aponta para um endpoint diferente
+ * e renderiza um conjunto mais limitado de ações.
+ * @param {string} token - O token de autenticação.
+ * @param {object} [params={}] - Os parâmetros de filtro.
+ */
 export async function loadViewUsersView(token, params = {}) {
+    // ... (Definição dos filtros, idêntica à função anterior)
     const roleFilters = [
         { key: 'all', text: 'Todos' },
         { key: 'user', text: 'Usuários' },
@@ -272,13 +333,11 @@ export async function loadViewUsersView(token, params = {}) {
         { key: 'manager', text: 'Gerentes' },
         { key: 'admin', text: 'Admins' }
     ];
-
     const statusFilters = [
         { key: 'all', text: 'Todos' },
         { key: 'active', text: 'Ativos' },
         { key: 'inactive', text: 'Inativos' }
     ];
-    
     const sortOptions = [
         { key: 'id', text: 'ID' },
         { key: 'username', text: 'Usuário' },
@@ -287,9 +346,9 @@ export async function loadViewUsersView(token, params = {}) {
         { key: 'role', text: 'Permissão' },
         { key: 'status', text: 'Status' }
     ];
-
     const sectorsData = await apiFetch(`${API_URL}/sectors/?size=1000`, token);
 
+    // Renderiza o layout da página.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Visualizar Usuários</h1>
@@ -349,6 +408,7 @@ export async function loadViewUsersView(token, params = {}) {
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
+        // A principal diferença é o endpoint da API: `/admin/users/view`.
         const url = new URL(`${API_URL}/admin/users/view`);
         url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
@@ -364,6 +424,7 @@ export async function loadViewUsersView(token, params = {}) {
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Renderiza a tabela, mas utiliza `renderManagerUserActions` para os botões.
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
@@ -391,13 +452,21 @@ export async function loadViewUsersView(token, params = {}) {
 }
 
 
+/**
+ * Carrega a view de logs do sistema.
+ * @param {string} token - O token de autenticação.
+ * @param {object} [params={}] - Os parâmetros de filtro.
+ */
 export async function loadSystemLogsView(token, params = {}) {
+    // Busca todos os utilizadores para popular o dropdown de filtro por utilizador.
     const usersData = await apiFetch(`${API_URL}/admin/users?size=1000`, token);
+    // Cria um mapa de ID -> username para facilitar a busca do nome do utilizador ao renderizar a tabela.
     const userMap = usersData.items.reduce((map, user) => {
         map[user.id] = user.username;
         return map;
     }, {});
 
+    // Renderiza a página de logs com os filtros.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Logs do Sistema</h1>
@@ -460,6 +529,7 @@ export async function loadSystemLogsView(token, params = {}) {
             return;
         }
 
+        // Renderiza a tabela de logs.
         container.innerHTML = `
             <table class="table table-striped table-hover table-sm">
                 <thead class="table-dark">
@@ -483,6 +553,12 @@ export async function loadSystemLogsView(token, params = {}) {
     }
 }
 
+/**
+ * Carrega a view de gerenciamento de setores.
+ * @param {string} token - O token de autenticação.
+ * @param {string} [searchTerm=''] - O termo de pesquisa.
+ * @param {number} [page=1] - O número da página.
+ */
 export async function loadManageSectorsView(token, searchTerm = '', page = 1) {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -515,6 +591,7 @@ export async function loadManageSectorsView(token, searchTerm = '', page = 1) {
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Renderiza a tabela de setores.
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">

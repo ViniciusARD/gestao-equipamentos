@@ -1,9 +1,34 @@
 // js/dashboard/views/reservations.js
 
+/**
+ * Módulo da View "Minhas Reservas".
+ *
+ * Este script é responsável por carregar e renderizar a página onde os
+ * utilizadores podem visualizar o seu próprio histórico de reservas. Ele constrói
+ * a interface com vários controlos de filtro e busca os dados
+ * paginados do endpoint `my-reservations` da API.
+ *
+ * Funcionalidades:
+ * - `loadMyReservationsView()`: A função principal que monta a estrutura da
+ * página, incluindo a barra de pesquisa, filtros de status e seletores de data.
+ * Em seguida, ela busca e exibe a lista de reservas que correspondem aos filtros aplicados.
+ *
+ * Dependências:
+ * - `api.js`: Para a comunicação com a API.
+ * - `ui.js`: Para renderizar a view principal, os badges de status e os controlos de paginação.
+ */
+
+
 import { API_URL, apiFetch } from '../api.js';
 import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.js';
 
+/**
+ * Carrega e renderiza a view "Minhas Reservas".
+ * @param {string} token - O token de autenticação do utilizador.
+ * @param {object} params - Um objeto com os parâmetros de filtro (search, status, start_date, end_date, page).
+ */
 export async function loadMyReservationsView(token, params = {}) {
+    // Define as opções de filtro de status que serão exibidas como botões.
     const statusFilters = [
         { key: 'all', text: 'Todas' },
         { key: 'pending', text: 'Pendentes' },
@@ -12,6 +37,7 @@ export async function loadMyReservationsView(token, params = {}) {
         { key: 'rejected', text: 'Rejeitadas' }
     ];
 
+    // Renderiza a estrutura HTML principal da página, incluindo os formulários de filtro.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Minhas Reservas</h1>
@@ -47,10 +73,12 @@ export async function loadMyReservationsView(token, params = {}) {
         <div id="paginationContainer"></div>
     `);
     
+    // Exibe um spinner de carregamento enquanto os dados são buscados.
     const container = document.getElementById('listContainer');
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
+        // Monta a URL da API com os parâmetros de paginação e filtro.
         const url = new URL(`${API_URL}/reservations/my-reservations`);
         url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
@@ -58,13 +86,16 @@ export async function loadMyReservationsView(token, params = {}) {
         if (params.start_date) url.searchParams.append('start_date', new Date(params.start_date).toISOString());
         if (params.end_date) url.searchParams.append('end_date', new Date(params.end_date + 'T23:59:59.999Z').toISOString());
         
+        // Busca os dados paginados das reservas.
         const data = await apiFetch(url, token);
         
+        // Se não houver resultados, exibe uma mensagem.
         if (data.items.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Nenhuma reserva encontrada com os filtros aplicados.</p>';
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Monta a tabela com as reservas encontradas.
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
@@ -91,8 +122,10 @@ export async function loadMyReservationsView(token, params = {}) {
                 </tbody>
             </table>
         `;
+        // Renderiza os controlos de paginação.
         document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'my-reservations');
     } catch (e) {
+        // Em caso de erro, exibe uma mensagem de falha.
         document.getElementById('listContainer').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
 }

@@ -1,15 +1,47 @@
 // js/dashboard/admin/inventoryViews.js
 
+/**
+ * Módulo para as Views de Gerenciamento de Inventário.
+ *
+ * Este script contém as funções responsáveis por renderizar as interfaces
+ * de gerenciamento de inventário para gerentes e administradores. Isso inclui
+ * a visualização principal dos tipos de equipamento e a tela detalhada para
+ * gerenciar as unidades físicas de um tipo específico.
+ *
+ * Funcionalidades:
+ * - `loadManageInventoryView()`: Carrega a view principal que exibe todos os
+ * tipos de equipamento em formato de "cards", com estatísticas e filtros.
+ * - `loadManageUnitsView()`: Carrega uma view dedicada para gerenciar as
+ * unidades de um tipo de equipamento, incluindo um formulário para adicionar/editar
+ * e uma tabela com a lista de unidades.
+ * - `populateUnitsTable()`: Função auxiliar que renderiza ou atualiza a tabela
+ * de unidades com base nos dados e em um filtro de status.
+ *
+ * Dependências:
+ * - `api.js`: Para fazer chamadas à API.
+ * - `ui.js`: Para renderizar a view principal e componentes como badges e paginação.
+ * - `renderers.js`: Para a função que desenha o card de um tipo de equipamento.
+ */
+
+
 import { API_URL, apiFetch } from '../api.js';
 import { renderView, renderStatusBadge, renderPaginationControls } from '../ui.js';
 import { renderInventoryRow } from './renderers.js';
 
+/**
+ * Popula a tabela de unidades de equipamento com base em um array de unidades e um filtro de status.
+ * @param {Array<object>} units - O array completo de unidades para um tipo de equipamento.
+ * @param {string} token - O token de autenticação.
+ * @param {string} [statusFilter='all'] - O filtro de status a ser aplicado ('all', 'available', etc.).
+ */
 export function populateUnitsTable(units, token, statusFilter = 'all') {
     const tableBody = document.getElementById('unitsTableBody');
     if (!tableBody) return;
 
+    // Filtra as unidades com base no status selecionado.
     const filteredUnits = units.filter(unit => {
         if (statusFilter === 'all') return true;
+        // Agrupa 'reserved' e 'pending' sob o mesmo filtro para simplificar a UI.
         if (statusFilter === 'reserved') return unit.status === 'reserved' || unit.status === 'pending';
         return unit.status === statusFilter;
     });
@@ -19,6 +51,7 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
         return;
     }
 
+    // Mapeia os status para classes de cor do Bootstrap para destaque visual.
     const statusRowClass = {
         available: 'table-success',
         maintenance: 'table-warning',
@@ -26,8 +59,10 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
         pending: 'table-light'
     };
 
+    // Gera o HTML para cada linha da tabela.
     tableBody.innerHTML = filteredUnits.map(unit => {
         let infoCell = '---';
+        // Se a unidade tiver uma reserva ativa, exibe quem a reservou e até quando.
         if (unit.active_reservation) {
             infoCell = `Reservado por <strong>${unit.active_reservation.user.username}</strong> até ${new Date(unit.active_reservation.end_time).toLocaleDateString('pt-BR')}`;
         }
@@ -49,10 +84,18 @@ export function populateUnitsTable(units, token, statusFilter = 'all') {
     }).join('');
 }
 
+
+/**
+ * Carrega a view principal de gerenciamento de inventário (lista de tipos de equipamento).
+ * @param {string} token - O token de autenticação.
+ * @param {object} [params={}] - Os parâmetros de filtro (pesquisa, categoria, página).
+ */
 export async function loadManageInventoryView(token, params = {}) {
+    // Busca todas as categorias existentes para popular o dropdown de filtro.
     const allTypesForCategories = await apiFetch(`${API_URL}/equipments/types`, token);
     const categories = [...new Set(allTypesForCategories.items.map(type => type.category))].sort();
 
+    // Renderiza o layout da página, incluindo os filtros.
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Gerir Inventário</h1>
@@ -84,6 +127,7 @@ export async function loadManageInventoryView(token, params = {}) {
     container.innerHTML = '<div class="col-12 text-center mt-5"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div>';
 
     try {
+        // Constrói a URL para buscar os tipos de equipamento com base nos filtros.
         const url = new URL(`${API_URL}/equipments/types`);
         url.searchParams.append('page', params.page || 1);
         if (params.search) url.searchParams.append('search', params.search);
@@ -96,6 +140,7 @@ export async function loadManageInventoryView(token, params = {}) {
             document.getElementById('paginationContainer').innerHTML = '';
             return;
         }
+        // Renderiza um card para cada tipo de equipamento.
         container.innerHTML = data.items.map(type => renderInventoryRow(type)).join('');
         document.getElementById('paginationContainer').innerHTML = renderPaginationControls(data, 'inventory');
 
@@ -104,7 +149,11 @@ export async function loadManageInventoryView(token, params = {}) {
     }
 }
 
-
+/**
+ * Carrega a view para gerenciar as unidades de um tipo de equipamento específico.
+ * @param {string} token - O token de autenticação.
+ * @param {number} typeId - O ID do tipo de equipamento.
+ */
 export async function loadManageUnitsView(token, typeId) {
     renderView(`
         <div id="units-view-container">
@@ -113,6 +162,7 @@ export async function loadManageUnitsView(token, typeId) {
     `);
 
     try {
+        // Busca os dados do tipo de equipamento, que já incluem a lista de suas unidades.
         const type = await apiFetch(`${API_URL}/equipments/types/${typeId}`, token);
         const container = document.getElementById('units-view-container');
         
@@ -123,6 +173,7 @@ export async function loadManageUnitsView(token, typeId) {
             { key: 'maintenance', text: 'Manutenção' }
         ];
         
+        // Renderiza a view de duas colunas: formulário à esquerda, tabela à direita.
         container.innerHTML = `
             <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <div>
@@ -195,8 +246,10 @@ export async function loadManageUnitsView(token, typeId) {
             </div>
         `;
         
+        // Armazena os dados brutos das unidades em um atributo de dados para fácil acesso pelos filtros.
         container.dataset.units = JSON.stringify(type.units);
         
+        // Popula a tabela com todas as unidades inicialmente.
         populateUnitsTable(type.units, token, 'all');
 
     } catch(e) {
