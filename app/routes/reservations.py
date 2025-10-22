@@ -137,7 +137,7 @@ def get_my_reservations(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     sort_by: Optional[str] = Query('start_time'),
-    sort_dir: Optional[str] = Query('desc'),
+    sort_dir: Optional[str] = Query('asc'),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)
 ):

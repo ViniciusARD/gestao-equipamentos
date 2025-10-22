@@ -81,8 +81,8 @@ export async function loadMyReservationsView(token, params = {}) {
                     <div class="col-md-2">
                         <label for="myReservationsSortDir" class="form-label small">Direção</label>
                         <select id="myReservationsSortDir" class="form-select">
-                            <option value="desc" ${params.sort_dir === 'desc' ? 'selected' : ''}>Descendente</option>
                             <option value="asc" ${params.sort_dir === 'asc' ? 'selected' : ''}>Ascendente</option>
+                            <option value="desc" ${params.sort_dir === 'desc' ? 'selected' : ''}>Descendente</option>
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
