@@ -156,10 +156,11 @@ def list_all_reservations(
         sort_direction = desc(sort_column) if sort_dir == 'desc' else asc(sort_column)
         query = query.order_by(sort_direction)
     else:
-        # Caso contrário, aplica a ordenação padrão (pendentes primeiro, depois por data de início).
+        # Caso contrário, aplica a ordenação padrão (pendentes primeiro, depois aprovadas, depois por data de início).
         status_sort_order = case(
             (Reservation.status == 'pending', 1),
-            else_=2
+            (Reservation.status == 'approved', 2),
+            else_=3
         ).asc()
         query = query.order_by(status_sort_order, desc(Reservation.start_time))
 

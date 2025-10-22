@@ -136,8 +136,8 @@ def get_my_reservations(
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    sort_by: Optional[str] = Query('start_time'),
-    sort_dir: Optional[str] = Query('asc'),
+    sort_by: Optional[str] = Query('end_time'),
+    sort_dir: Optional[str] = Query('desc'),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)
 ):
@@ -185,7 +185,7 @@ def get_my_reservations(
         'end_time': Reservation.end_time,
         'created_at': Reservation.created_at
     }
-    sort_column = sort_column_map.get(sort_by, Reservation.start_time)
+    sort_column = sort_column_map.get(sort_by, Reservation.end_time)
     if sort_dir == 'desc':
         query = query.order_by(desc(sort_column))
     else:

@@ -39,6 +39,7 @@ export async function loadMyReservationsView(token, params = {}) {
     ];
 
     const sortOptions = [
+        { key: '', text: 'Padrão (Fim da Reserva - Desc.)' },
         { key: 'start_time', text: 'Início da Reserva' },
         { key: 'end_time', text: 'Fim da Reserva' },
         { key: 'created_at', text: 'Data de Solicitação' },
@@ -75,14 +76,14 @@ export async function loadMyReservationsView(token, params = {}) {
                     <div class="col-md-3">
                         <label for="myReservationsSortBy" class="form-label small">Ordenar por</label>
                         <select id="myReservationsSortBy" class="form-select">
-                            ${sortOptions.map(opt => `<option value="${opt.key}" ${params.sort_by === opt.key ? 'selected' : ''}>${opt.text}</option>`).join('')}
+                            ${sortOptions.map(opt => `<option value="${opt.key}" ${(params.sort_by || '') === opt.key ? 'selected' : ''}>${opt.text}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-2">
                         <label for="myReservationsSortDir" class="form-label small">Direção</label>
                         <select id="myReservationsSortDir" class="form-select">
                             <option value="asc" ${params.sort_dir === 'asc' ? 'selected' : ''}>Ascendente</option>
-                            <option value="desc" ${params.sort_dir === 'desc' ? 'selected' : ''}>Descendente</option>
+                            <option value="desc" ${(params.sort_dir || 'desc') === 'desc' ? 'selected' : ''}>Descendente</option>
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
