@@ -495,6 +495,7 @@ export async function loadSystemLogsView(token, params = {}) {
     renderView(`
         <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
             <h1 class="h2">Logs do Sistema</h1>
+            <button class="btn btn-success" id="exportLogsBtn"><i class="bi bi-download me-2"></i>Exportar para .txt</button>
         </div>
         <div class="card mb-4">
             <div class="card-body">

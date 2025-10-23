@@ -55,6 +55,9 @@ class User(Base):
     # um usuário terá no máximo um token.
     google_token = relationship("GoogleOAuthToken", back_populates="user", cascade="all, delete-orphan", uselist=False)
 
+    # Define a relação com a tabela 'activity_logs'
+    activity_logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+
     # --- Propriedade Híbrida ---
     @hybrid_property
     def has_google_token(self):

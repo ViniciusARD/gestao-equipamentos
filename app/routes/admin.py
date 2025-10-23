@@ -13,7 +13,7 @@ Dependências:
 - Módulos da aplicação: models, schemas, security, email_utils, etc.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func, desc, asc, case
 from typing import List, Optional
@@ -304,20 +304,6 @@ def delete_user_by_admin(user_id: int, db: Session = Depends(get_db), admin_user
     if not db_user: raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if db_user.id == admin_user.id: raise HTTPException(status_code=400, detail="Um administrador não pode deletar a própria conta por esta rota.")
     
-    # --- INÍCIO DA ALTERAÇÃO ---
-    # Verifica se o usuário tem reservas ativas (pendentes ou aprovadas)
-    active_reservations = db.query(Reservation).filter(
-        Reservation.user_id == db_user.id,
-        Reservation.status.in_(['pending', 'approved'])
-    ).first()
-
-    if active_reservations:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Não é possível deletar o usuário. Ele possui reservas pendentes ou aprovadas."
-        )
-    # --- FIM DA ALTERAÇÃO ---
-    
     user_email_log = db_user.email
     db.delete(db_user)
     db.commit()
@@ -400,3 +386,90 @@ def get_activity_logs(
     logs = query.order_by(ActivityLog.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {"items": logs, "total": total, "page": page, "size": size, "pages": math.ceil(total / size)}
+
+
+@router.get("/logs/export", response_class=Response)
+def export_activity_logs(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user),
+    search: Optional[str] = Query(None),
+    level: Optional[str] = Query(None),
+    user_id: Optional[int] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)
+):
+    """(Admin) Exporta os logs de atividade para um arquivo .txt com base nos filtros aplicados."""
+    # 1. Obter os logs filtrados (sem paginação)
+    query = db.query(ActivityLog).options(joinedload(ActivityLog.user)) # Eager load user
+
+    if search:
+        query = query.filter(ActivityLog.message.ilike(f"%{search}%"))
+    if level and level != "all":
+        query = query.filter(ActivityLog.level == level.upper())
+    if user_id:
+        query = query.filter(ActivityLog.user_id == user_id)
+    if start_date:
+        query = query.filter(ActivityLog.created_at >= start_date)
+    if end_date:
+        query = query.filter(ActivityLog.created_at <= end_date)
+
+    logs = query.order_by(ActivityLog.created_at.asc()).all()
+
+    # 2. Obter estatísticas adicionais do sistema
+    total_users = db.query(User).count()
+    total_equipment_types = db.query(EquipmentType).count()
+    total_equipment_units = db.query(EquipmentUnit).count()
+    total_reservations = db.query(Reservation).count()
+    total_sectors = db.query(Sector).count()
+
+    # 3. Formatar o conteúdo do arquivo de texto
+    report_content = []
+    report_content.append("=========================================")
+    report_content.append("   RELATÓRIO DE AUDITORIA - EQUIPCONTROL   ")
+    report_content.append("=========================================")
+    report_content.append(f"Relatório gerado em: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M:%S UTC')}")
+    report_content.append(f"Gerado por: {admin_user.username} (ID: {admin_user.id})")
+    report_content.append("\n--- ESTATÍSTICAS GERAIS DO SISTEMA ---\n")
+    report_content.append(f"- Total de Usuários Cadastrados: {total_users}")
+    report_content.append(f"- Total de Tipos de Equipamentos: {total_equipment_types}")
+    report_content.append(f"- Total de Unidades de Equipamentos: {total_equipment_units}")
+    report_content.append(f"- Total de Reservas (todos os status): {total_reservations}")
+    report_content.append(f"- Total de Setores: {total_sectors}")
+
+    report_content.append("\n--- FILTROS APLICADOS NESTE RELATÓRIO ---\n")
+    report_content.append(f"- Termo de busca: {search or 'Nenhum'}")
+    report_content.append(f"- Nível de Log: {level or 'Todos'}")
+    report_content.append(f"- ID do Usuário: {user_id or 'Todos'}")
+    report_content.append(f"- Data de Início: {start_date.strftime('%d/%m/%Y %H:%M') if start_date else 'Nenhuma'}")
+    report_content.append(f"- Data de Fim: {end_date.strftime('%d/%m/%Y %H:%M') if end_date else 'Nenhuma'}")
+
+    report_content.append("\n=========================================")
+    report_content.append("          REGISTROS DE ATIVIDADE         ")
+    report_content.append("=========================================\n")
+
+    if not logs:
+        report_content.append("Nenhum registro de log encontrado com os filtros aplicados.")
+    else:
+        for log in logs:
+            username = log.user.username if log.user else 'Sistema'
+            log_line = (
+                f"[{log.created_at.strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"[{log.level:<7}] "
+                f"[Usuário: {username} (ID: {log.user_id or 'N/A'})] - "
+                f"{log.message}"
+            )
+            report_content.append(log_line)
+
+    final_report = "\n".join(report_content)
+
+    # 4. Criar a resposta de download
+    filename_date = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"equipcontrol_audit_log_{filename_date}.txt"
+    
+    return Response(
+        content=final_report,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )

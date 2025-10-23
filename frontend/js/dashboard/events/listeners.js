@@ -73,7 +73,8 @@ import {
     handleDeleteAccount,
     handleEnable2FA,
     handleDisable2FA,
-    handleSectorAction
+    handleSectorAction,
+    handleExportLogs
 } from './actions.js';
 
 
@@ -166,6 +167,7 @@ async function handleGlobalClick(event, appState) {
         '#searchSectorsBtn': () => applySectorsFilter(appState),
         '#applyLogsFilterBtn': () => applyLogsFilter(appState),
         '#applyAnalyticsFilterBtn': () => applyAnalyticsFilter(appState),
+        '#exportLogsBtn': () => handleExportLogs(appState),
     };
 
     // Itera sobre as ações e executa a correspondente se o seletor corresponder.

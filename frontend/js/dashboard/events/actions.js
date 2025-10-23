@@ -178,10 +178,7 @@ export async function handleDeleteAccount(button, token, appState) {
         // Desloga o utilizador após um breve atraso.
         setTimeout(() => appState.logout(), 3000);
     } catch (e) {
-        // --- INÍCIO DA ALTERAÇÃO ---
-        // Exibe a mensagem de erro específica ou uma genérica.
         showToast(`Erro ao deletar conta: ${e.message}`, 'danger');
-        // --- FIM DA ALTERAÇÃO ---
         setButtonLoading(button, false);
     }
 }
@@ -223,7 +220,7 @@ export async function handleDisable2FA(token, appState) {
     if (!password) return;
 
     // Pede um código OTP válido para confirmar a ação.
-    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticado:");
+    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticador:");
     if (!otp_code) return;
     
     const button = document.getElementById('disable2faBtn');
@@ -268,5 +265,75 @@ export async function handleSectorAction(button, token) {
             showToast(`Erro: ${e.message}`, 'danger');
             setButtonLoading(button, false);
         }
+    }
+}
+
+/**
+ * Handles the log export action.
+ * @param {object} appState - The global application state.
+ */
+export async function handleExportLogs(appState) {
+    const token = appState.token;
+    const button = document.getElementById('exportLogsBtn');
+    setButtonLoading(button, true, 'Exportando...');
+
+    try {
+        // 1. Get current filter values
+        const params = {
+            search: document.getElementById('logsSearchInput')?.value.trim(),
+            level: document.getElementById('logsLevelFilter')?.value,
+            user_id: document.getElementById('logsUserFilter')?.value,
+            start_date: document.getElementById('logsStartDate')?.value,
+            end_date: document.getElementById('logsEndDate')?.value,
+        };
+
+        // 2. Build URL with filters
+        const url = new URL(`${API_URL}/admin/logs/export`);
+        Object.keys(params).forEach(key => {
+            if (params[key]) {
+                url.searchParams.append(key, params[key]);
+            }
+        });
+
+        // 3. Fetch the text file from the backend
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Falha ao exportar logs.');
+        }
+
+        // 4. Create a Blob and trigger download
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = downloadUrl;
+        
+        // Extract filename from Content-Disposition header
+        const disposition = response.headers.get('content-disposition');
+        let filename = 'equipcontrol_audit_log.txt';
+        if (disposition && disposition.indexOf('attachment') !== -1) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(disposition);
+            if (matches != null && matches[1]) {
+                filename = matches[1].replace(/['"]/g, '');
+            }
+        }
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        a.remove();
+        
+        showToast('Exportação concluída!', 'success');
+
+    } catch (e) {
+        showToast(`Erro ao exportar: ${e.message}`, 'danger');
+    } finally {
+        setButtonLoading(button, false);
     }
 }

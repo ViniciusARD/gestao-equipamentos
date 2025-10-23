@@ -12,6 +12,7 @@ Dependências:
 """
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class ActivityLog(Base):
@@ -35,3 +36,7 @@ class ActivityLog(Base):
     # Data e hora em que o log foi criado. 'server_default=func.now()' garante
     # que o banco de dados preencha este campo automaticamente com o timestamp atual.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # --- Relacionamento ORM ---
+    # Define a relação com a tabela 'users', criando a referência inversa no modelo User.
+    user = relationship("User", back_populates="activity_logs")
