@@ -120,14 +120,23 @@ def list_all_reservations(
     """(Gerente) Lista todas as reservas do sistema, com filtros avançados e paginação."""
     # Constrói a consulta base com joins para otimizar o carregamento de dados
     query = db.query(Reservation).join(Reservation.user).join(Reservation.equipment_unit).join(EquipmentUnit.equipment_type).options(
-        joinedload(Reservation.user),
+        joinedload(Reservation.user).joinedload(User.sector),
         joinedload(Reservation.equipment_unit).joinedload(EquipmentUnit.equipment_type)
     )
 
     # Aplica filtros de busca por texto em múltiplos campos
     if search:
         search_term = f"%{search}%"
-        query = query.filter(or_(User.username.ilike(search_term), User.email.ilike(search_term), EquipmentType.name.ilike(search_term), EquipmentUnit.identifier_code.ilike(search_term)))
+        filter_conditions = [
+            User.username.ilike(search_term),
+            User.email.ilike(search_term),
+            EquipmentType.name.ilike(search_term),
+            EquipmentUnit.identifier_code.ilike(search_term),
+            EquipmentUnit.serial_number.ilike(search_term),
+        ]
+        if search.isdigit():
+            filter_conditions.append(Reservation.id == int(search))
+        query = query.filter(or_(*filter_conditions))
 
     # Aplica filtro por status, com um caso especial para "atrasadas"
     if status and status != "all":
@@ -228,7 +237,7 @@ def notify_overdue_reservation(
         raise HTTPException(status_code=400, detail="Esta reserva não está atrasada.")
 
     background_tasks.add_task(task_send_reservation_email, db_reservation.id, 'overdue')
-    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.username}' enviou notificação de atraso para a reserva ID {db_reservation.id}.")
+    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.username}' enviou notificação de atraso para la reserva ID {db_reservation.id}.")
     return {"message": "Notificação de atraso enviada com sucesso."}
 
 # --- ROTAS DE GERENCIAMENTO DE USUÁRIOS ---

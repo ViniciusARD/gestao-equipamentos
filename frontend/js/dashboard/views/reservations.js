@@ -56,7 +56,7 @@ export async function loadMyReservationsView(token, params = {}) {
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-12">
-                        <input type="search" id="myReservationsSearchInput" class="form-control" placeholder="Buscar por nome ou código do equipamento..." value="${params.search || ''}">
+                        <input type="search" id="myReservationsSearchInput" class="form-control" placeholder="Buscar por ID da reserva, nome, código ou nº de série do equipamento..." value="${params.search || ''}">
                     </div>
                     <div class="col-12">
                         <div class="btn-group w-100" role="group">
@@ -125,8 +125,10 @@ export async function loadMyReservationsView(token, params = {}) {
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
                     <tr>
+                        <th>ID Reserva</th>
                         <th>Equipamento</th>
                         <th>Código</th>
+                        <th>Nº de Série</th>
                         <th>Status</th>
                         <th>Início</th>
                         <th>Fim</th>
@@ -136,8 +138,10 @@ export async function loadMyReservationsView(token, params = {}) {
                 <tbody>
                     ${data.items.map(res => `
                         <tr>
+                            <td>${res.id}</td>
                             <td>${res.equipment_unit.equipment_type.name}</td>
                             <td>${res.equipment_unit.identifier_code || 'N/A'}</td>
+                            <td>${res.equipment_unit.serial_number}</td>
                             <td>${renderStatusBadge(res.status)}</td>
                             <td>${new Date(res.start_time).toLocaleString('pt-BR')}</td>
                             <td>${new Date(res.end_time).toLocaleString('pt-BR')}</td>

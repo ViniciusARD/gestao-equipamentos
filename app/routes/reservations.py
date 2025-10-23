@@ -158,12 +158,15 @@ def get_my_reservations(
     # Aplica filtros de busca e de status, se fornecidos
     if search:
         search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                EquipmentType.name.ilike(search_term),
-                EquipmentUnit.identifier_code.ilike(search_term)
-            )
-        )
+        filter_conditions = [
+            EquipmentType.name.ilike(search_term),
+            EquipmentUnit.identifier_code.ilike(search_term),
+            EquipmentUnit.serial_number.ilike(search_term),
+        ]
+        if search.isdigit():
+            filter_conditions.append(Reservation.id == int(search))
+        query = query.filter(or_(*filter_conditions))
+
     if status and status != "all":
         if status == "overdue":
             query = query.filter(Reservation.status == 'approved', Reservation.end_time < datetime.now(timezone.utc))

@@ -123,7 +123,7 @@ export async function loadManageReservationsView(token, params = {}) {
             <div class="card-body">
                  <div class="row g-3">
                     <div class="col-12">
-                        <input type="search" id="reservationsSearchInput" class="form-control" placeholder="Buscar por usuário, equipamento, email..." value="${params.search || ''}">
+                        <input type="search" id="reservationsSearchInput" class="form-control" placeholder="Buscar por ID da reserva, usuário, setor, equipamento, nº de série..." value="${params.search || ''}">
                     </div>
                     <div class="col-12">
                          <div class="btn-group w-100" role="group">
@@ -186,13 +186,16 @@ export async function loadManageReservationsView(token, params = {}) {
         container.innerHTML = `
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
-                    <tr><th>Usuário</th><th>Equipamento</th><th>Status</th><th>Período</th><th>Ações</th></tr>
+                    <tr><th>ID</th><th>Usuário</th><th>Setor</th><th>Equipamento</th><th>Nº Série</th><th>Status</th><th>Período</th><th>Ações</th></tr>
                 </thead>
                 <tbody>
                     ${data.items.map(res => `
                         <tr id="reservation-row-${res.id}">
+                            <td>${res.id}</td>
                             <td data-label="Usuário">${res.user.username} <small class="text-muted d-block">${res.user.email}</small></td>
-                            <td data-label="Equipamento">${res.equipment_unit.equipment_type.name} (${res.equipment_unit.identifier_code || 'N/A'})</td>
+                            <td data-label="Setor">${res.user.sector ? res.user.sector.name : '<span class="text-muted">N/A</span>'}</td>
+                            <td data-label="Equipamento">${res.equipment_unit.equipment_type.name} <small class="text-muted d-block">Código: ${res.equipment_unit.identifier_code || 'N/A'}</small></td>
+                            <td data-label="Nº Série">${res.equipment_unit.serial_number}</td>
                             <td class="status-cell" data-label="Status">${renderStatusBadge(res.status)}</td>
                             <td data-label="Período">${new Date(res.start_time).toLocaleString('pt-BR')} - ${new Date(res.end_time).toLocaleString('pt-BR')}</td>
                             <td class="action-cell" data-label="Ações">${renderAdminReservationActions(res)}</td>
