@@ -55,8 +55,10 @@ class User(Base):
     # um usuário terá no máximo um token.
     google_token = relationship("GoogleOAuthToken", back_populates="user", cascade="all, delete-orphan", uselist=False)
 
-    # Define a relação com a tabela 'activity_logs'
-    activity_logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    # Define a relação com a tabela 'activity_logs'. A cascata foi removida para
+    # que os logs não sejam deletados quando um usuário é removido. O banco de dados
+    # irá definir o user_id para NULL.
+    activity_logs = relationship("ActivityLog", back_populates="user")
 
     # --- Propriedade Híbrida ---
     @hybrid_property

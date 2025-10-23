@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.sector import Sector
-from app.models.reservation import Reservation  # Importar o modelo Reservation
+from app.models.reservation import Reservation
 from app.schemas.user import UserOut, UserUpdate
 from app.security import get_current_user
 from app.logging_utils import create_log
@@ -82,7 +82,6 @@ def delete_user_me(
 
     Esta é uma operação destrutiva e permanente.
     """
-    # --- INÍCIO DA ALTERAÇÃO ---
     # Verifica se o usuário tem reservas ativas (pendentes ou aprovadas)
     active_reservations = db.query(Reservation).filter(
         Reservation.user_id == current_user.id,
@@ -94,17 +93,24 @@ def delete_user_me(
             status_code=status.HTTP_409_CONFLICT,
             detail="Não é possível deletar a conta. Você possui reservas pendentes ou aprovadas."
         )
-    # --- FIM DA ALTERAÇÃO ---
 
     # Armazena dados para o log antes de deletar o usuário
     user_id_log = current_user.id
     username_log = current_user.username
     
-    # Deleta o usuário do banco de dados
-    db.delete(current_user)
-    db.commit()
-    
-    # Cria um log registrando a autoexclusão da conta
+    # --- INÍCIO DA ALTERAÇÃO ---
+    # 1. Cria o log da exclusão ANTES de deletar o usuário.
+    # A função create_log realiza um "commit", finalizando esta transação.
     create_log(db, user_id_log, "WARNING", f"Usuário '{username_log}' (ID: {user_id_log}) deletou a própria conta.")
+    
+    # 2. Após o commit anterior, o objeto 'current_user' fica "detached" (desanexado) da sessão.
+    # É necessário buscar o usuário novamente no banco para poder deletá-lo em uma nova transação.
+    user_to_delete = db.query(User).filter(User.id == user_id_log).first()
+
+    # 3. Deleta o usuário e confirma (commit) a operação.
+    if user_to_delete:
+        db.delete(user_to_delete)
+        db.commit()
+    # --- FIM DA ALTERAÇÃO ---
 
     return

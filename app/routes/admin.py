@@ -304,10 +304,31 @@ def delete_user_by_admin(user_id: int, db: Session = Depends(get_db), admin_user
     if not db_user: raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if db_user.id == admin_user.id: raise HTTPException(status_code=400, detail="Um administrador não pode deletar a própria conta por esta rota.")
     
+    # Verifica se o usuário a ser deletado possui reservas ativas
+    active_reservations = db.query(Reservation).filter(
+        Reservation.user_id == user_id,
+        Reservation.status.in_(['pending', 'approved'])
+    ).first()
+
+    if active_reservations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Não é possível deletar o usuário '{db_user.username}'. Ele possui reservas pendentes ou aprovadas."
+        )
+
     user_email_log = db_user.email
-    db.delete(db_user)
-    db.commit()
+    
+    # --- INÍCIO DA ALTERAÇÃO ---
+    # 1. Cria o log da exclusão ANTES de deletar o usuário.
     create_log(db, admin_user.id, "WARNING", f"Admin '{admin_user.username}' deletou o usuário '{user_email_log}' (ID: {user_id}).")
+
+    # 2. Re-busca o usuário para garantir que a instância está "attached" (anexada)
+    # à sessão antes de deletar, pois o create_log realiza um commit.
+    user_to_delete = db.query(User).filter(User.id == user_id).first()
+    if user_to_delete:
+        db.delete(user_to_delete)
+        db.commit()
+    # --- FIM DA ALTERAÇÃO ---
     return
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)
