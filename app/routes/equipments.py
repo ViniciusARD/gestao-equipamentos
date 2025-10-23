@@ -185,15 +185,32 @@ def update_equipment_type(
 
 @router.delete("/types/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_equipment_type(type_id: int, db: Session = Depends(get_db), manager_user: User = Depends(get_current_manager_user)):
-    """(Gerente) Deleta um tipo de equipamento e todas as suas unidades associadas (devido à cascata no modelo)."""
+    """(Gerente) Deleta um tipo de equipamento, se não houver reservas ativas."""
     db_type = db.query(EquipmentType).filter(EquipmentType.id == type_id).first()
     if not db_type:
         raise HTTPException(status_code=404, detail="Tipo de equipamento não encontrado.")
     
+    # Verifica se existe alguma reserva ativa ou pendente para as unidades deste tipo
+    has_active_reservations = (
+        db.query(Reservation)
+        .join(EquipmentUnit)
+        .filter(
+            EquipmentUnit.type_id == type_id,
+            Reservation.status.in_(['pending', 'approved'])
+        )
+        .first()
+    )
+
+    if has_active_reservations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Não é possível deletar este tipo de equipamento, pois existem reservas ativas ou pendentes associadas a ele."
+        )
+
     type_name = db_type.name
     db.delete(db_type)
     db.commit()
-    create_log(db, manager_user.id, "INFO", f"Gerente '{manager_user.email}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
+    create_log(db, manager_user.id, "WARNING", f"Gerente '{manager_user.username}' deletou o tipo de equipamento '{type_name}' (ID: {type_id}).")
     return
 
 # --- Rotas para UNIDADES de Equipamento ---

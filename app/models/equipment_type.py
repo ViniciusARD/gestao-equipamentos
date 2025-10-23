@@ -38,6 +38,6 @@ class EquipmentType(Base):
 
     # --- Relacionamentos ORM ---
     # Define o relacionamento um-para-muitos com a tabela 'equipment_units'.
-    # Um tipo de equipamento pode ter várias unidades físicas.
-    # 'back_populates' cria a referência bidirecional com o modelo EquipmentUnit.
-    units = relationship("EquipmentUnit", back_populates="equipment_type")
+    # A adição de 'cascade="all, delete-orphan"' garante que, se um tipo for deletado,
+    # todas as suas unidades físicas também serão deletadas automaticamente.
+    units = relationship("EquipmentUnit", back_populates="equipment_type", cascade="all, delete-orphan")
