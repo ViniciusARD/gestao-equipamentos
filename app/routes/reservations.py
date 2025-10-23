@@ -15,7 +15,7 @@ Dependências:
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func, desc, asc
+from sqlalchemy import or_, func, desc, asc, case
 from typing import List, Optional
 from datetime import datetime, timezone
 import asyncio
@@ -136,8 +136,8 @@ def get_my_reservations(
     status: Optional[str] = Query(None),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    sort_by: Optional[str] = Query('end_time'),
-    sort_dir: Optional[str] = Query('desc'),
+    sort_by: Optional[str] = Query(None), # Alterado o padrão
+    sort_dir: Optional[str] = Query('asc'), # Alterado o padrão
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)
 ):
@@ -185,11 +185,21 @@ def get_my_reservations(
         'end_time': Reservation.end_time,
         'created_at': Reservation.created_at
     }
-    sort_column = sort_column_map.get(sort_by, Reservation.end_time)
-    if sort_dir == 'desc':
-        query = query.order_by(desc(sort_column))
+    
+    # Se uma ordenação específica for solicitada, aplica.
+    if sort_by and sort_by in sort_column_map:
+        sort_column = sort_column_map.get(sort_by)
+        sort_direction = desc(sort_column) if sort_dir == 'desc' else asc(sort_column)
+        query = query.order_by(sort_direction)
     else:
-        query = query.order_by(asc(sort_column))
+        # Caso contrário, aplica a ordenação padrão (pendentes primeiro, depois aprovadas, depois por data de início).
+        status_sort_order = case(
+            (Reservation.status == 'pending', 1),
+            (Reservation.status == 'approved', 2),
+            else_=3
+        ).asc()
+        query = query.order_by(status_sort_order, desc(Reservation.start_time))
+
 
     # Calcula o total de itens para a paginação
     total = query.count()
