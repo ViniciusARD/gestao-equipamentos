@@ -146,7 +146,9 @@ export async function handleUserAction(button, token, currentUserId) {
             }
         }
     } catch (e) {
+        // --- INÍCIO DA ALTERAÇÃO ---
         showToast(`Erro: ${e.message}`, 'danger');
+        // --- FIM DA ALTERAÇÃO ---
     } finally {
         if (action !== 'delete') {
             setButtonLoading(button, false);

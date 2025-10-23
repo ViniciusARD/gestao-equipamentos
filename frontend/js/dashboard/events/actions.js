@@ -178,7 +178,10 @@ export async function handleDeleteAccount(button, token, appState) {
         // Desloga o utilizador após um breve atraso.
         setTimeout(() => appState.logout(), 3000);
     } catch (e) {
+        // --- INÍCIO DA ALTERAÇÃO ---
+        // Exibe a mensagem de erro específica ou uma genérica.
         showToast(`Erro ao deletar conta: ${e.message}`, 'danger');
+        // --- FIM DA ALTERAÇÃO ---
         setButtonLoading(button, false);
     }
 }
@@ -220,7 +223,7 @@ export async function handleDisable2FA(token, appState) {
     if (!password) return;
 
     // Pede um código OTP válido para confirmar a ação.
-    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticador:");
+    const otp_code = prompt("Agora, insira um código do seu aplicativo autenticado:");
     if (!otp_code) return;
     
     const button = document.getElementById('disable2faBtn');

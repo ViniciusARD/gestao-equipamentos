@@ -304,6 +304,20 @@ def delete_user_by_admin(user_id: int, db: Session = Depends(get_db), admin_user
     if not db_user: raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if db_user.id == admin_user.id: raise HTTPException(status_code=400, detail="Um administrador não pode deletar a própria conta por esta rota.")
     
+    # --- INÍCIO DA ALTERAÇÃO ---
+    # Verifica se o usuário tem reservas ativas (pendentes ou aprovadas)
+    active_reservations = db.query(Reservation).filter(
+        Reservation.user_id == db_user.id,
+        Reservation.status.in_(['pending', 'approved'])
+    ).first()
+
+    if active_reservations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Não é possível deletar o usuário. Ele possui reservas pendentes ou aprovadas."
+        )
+    # --- FIM DA ALTERAÇÃO ---
+    
     user_email_log = db_user.email
     db.delete(db_user)
     db.commit()

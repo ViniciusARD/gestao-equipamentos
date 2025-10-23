@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.sector import Sector
+from app.models.reservation import Reservation  # Importar o modelo Reservation
 from app.schemas.user import UserOut, UserUpdate
 from app.security import get_current_user
 from app.logging_utils import create_log
@@ -81,6 +82,20 @@ def delete_user_me(
 
     Esta é uma operação destrutiva e permanente.
     """
+    # --- INÍCIO DA ALTERAÇÃO ---
+    # Verifica se o usuário tem reservas ativas (pendentes ou aprovadas)
+    active_reservations = db.query(Reservation).filter(
+        Reservation.user_id == current_user.id,
+        Reservation.status.in_(['pending', 'approved'])
+    ).first()
+
+    if active_reservations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Não é possível deletar a conta. Você possui reservas pendentes ou aprovadas."
+        )
+    # --- FIM DA ALTERAÇÃO ---
+
     # Armazena dados para o log antes de deletar o usuário
     user_id_log = current_user.id
     username_log = current_user.username
