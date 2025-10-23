@@ -110,7 +110,9 @@ def list_equipment_types(
             or_(
                 EquipmentType.name.ilike(search_term),
                 EquipmentType.description.ilike(search_term),
-                EquipmentType.category.ilike(search_term)
+                EquipmentType.category.ilike(search_term),
+                EquipmentUnit.identifier_code.ilike(search_term),
+                EquipmentUnit.serial_number.ilike(search_term)
             )
         )
     if category and category != "all":
@@ -207,8 +209,10 @@ def create_equipment_unit(
         raise HTTPException(status_code=404, detail="O tipo de equipamento especificado não existe.")
 
     # Validação de unicidade para código e número de série
-    if db.query(EquipmentUnit).filter(or_(EquipmentUnit.identifier_code == unit_data.identifier_code, EquipmentUnit.serial_number == unit_data.serial_number)).first():
-        raise HTTPException(status_code=409, detail=f"O código de identificação ou número de série já está em uso.")
+    if db.query(EquipmentUnit).filter(EquipmentUnit.identifier_code == unit_data.identifier_code).first():
+        raise HTTPException(status_code=409, detail=f"O código de identificação '{unit_data.identifier_code}' já está em uso.")
+    if db.query(EquipmentUnit).filter(EquipmentUnit.serial_number == unit_data.serial_number).first():
+        raise HTTPException(status_code=409, detail=f"O número de série '{unit_data.serial_number}' já está em uso.")
 
     if unit_data.quantity > 1:
          raise HTTPException(status_code=400, detail="Não é possível criar múltiplas unidades com número de série. Adicione uma de cada vez.")

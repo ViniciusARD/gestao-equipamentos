@@ -104,7 +104,7 @@ export async function loadManageInventoryView(token, params = {}) {
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-lg-6">
-                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria..." value="${params.search || ''}">
+                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria, código ou nº de série..." value="${params.search || ''}">
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <select id="inventoryCategoryFilter" class="form-select">
