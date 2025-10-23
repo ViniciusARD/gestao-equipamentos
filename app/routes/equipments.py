@@ -103,18 +103,30 @@ def list_equipment_types(
         .outerjoin(EquipmentUnit, EquipmentType.id == EquipmentUnit.type_id)
     )
 
-    # Aplica filtros de busca por texto e categoria
+    # Aplica filtros de busca
     if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                EquipmentType.name.ilike(search_term),
-                EquipmentType.description.ilike(search_term),
-                EquipmentType.category.ilike(search_term),
-                EquipmentUnit.identifier_code.ilike(search_term),
-                EquipmentUnit.serial_number.ilike(search_term)
+        # Verifica se o termo de busca é um número para busca por ID
+        if search.isdigit():
+            search_id = int(search)
+            query = query.filter(
+                or_(
+                    EquipmentType.id == search_id,
+                    EquipmentUnit.id == search_id
+                )
             )
-        )
+        else:
+            # Busca por texto em múltiplos campos
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    EquipmentType.name.ilike(search_term),
+                    EquipmentType.description.ilike(search_term),
+                    EquipmentType.category.ilike(search_term),
+                    EquipmentUnit.identifier_code.ilike(search_term),
+                    EquipmentUnit.serial_number.ilike(search_term)
+                )
+            )
+
     if category and category != "all":
         query = query.filter(EquipmentType.category == category)
     

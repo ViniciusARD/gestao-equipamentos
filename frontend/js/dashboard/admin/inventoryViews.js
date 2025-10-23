@@ -11,7 +11,7 @@
  * Funcionalidades:
  * - `loadManageInventoryView()`: Carrega a view principal que exibe todos os
  * tipos de equipamento em formato de "cards", com estatísticas e filtros.
- * - `loadManageUnitsView()`: Carrega uma view dedicada para gerenciar as
+ * - `loadManageUnitsView()`: Carrega a view dedicada para gerenciar as
  * unidades de um tipo de equipamento, incluindo um formulário para adicionar/editar
  * e uma tabela com a lista de unidades.
  * - `populateUnitsTable()`: Função auxiliar que renderiza ou atualiza a tabela
@@ -104,7 +104,7 @@ export async function loadManageInventoryView(token, params = {}) {
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-lg-6">
-                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por nome, categoria, código ou nº de série..." value="${params.search || ''}">
+                        <input type="search" id="inventorySearchInput" class="form-control" placeholder="Buscar por ID, nome, categoria, código ou nº de série..." value="${params.search || ''}">
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <select id="inventoryCategoryFilter" class="form-select">

@@ -147,7 +147,10 @@ export function renderInventoryRow(type) {
     <div class="col-md-6 col-lg-4 mb-4" id="inventory-row-${type.id}">
         <div class="card h-100">
             <div class="card-body d-flex flex-column">
-                <h5 class="card-title">${type.name}</h5>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">${type.name}</h5>
+                    <span class="badge bg-secondary">ID: ${type.id}</span>
+                </div>
                 <h6 class="card-subtitle mb-2 text-muted">${type.category}</h6>
                 <p class="card-text small text-muted flex-grow-1">${type.description || 'Sem descrição.'}</p>
                 
