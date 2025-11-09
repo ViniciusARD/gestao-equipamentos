@@ -1,0 +1,1 @@
+# Arquivo vazio para que o Python trate a pasta 'app' dentro de 'tests' como um pacote.

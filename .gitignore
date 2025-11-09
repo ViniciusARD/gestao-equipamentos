@@ -4,3 +4,8 @@ client_secret.json
 
 # Arquivos gerados pelo Python
 __pycache__/
+.pytest_cache/
+
+# Arquivos de banco de dados SQLite de teste
+*.db
+
