@@ -129,7 +129,7 @@ pip install -r requirements.txt
 
 Esta é a etapa mais crucial. As funcionalidades do sistema dependem da configuração correta deste arquivo.
 
-1.  Na raiz do projeto, **crie uma cópia** do arquivo `.env` (que você forneceu) ou crie um novo `.env` com base no exemplo abaixo.
+1.  Na raiz do projeto, crie um novo `.env` com base no exemplo abaixo.
 
 2.  Abra o arquivo `.env` e preencha **TODAS** as variáveis. Elas são divididas em grupos:
 
