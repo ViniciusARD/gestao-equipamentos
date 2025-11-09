@@ -1,0 +1,12 @@
+# [API] Roda o servidor do backend (FastAPI) em modo de desenvolvimento com auto-reload.
+uvicorn main:app --reload
+
+# [API] Endereço da documentação interativa (Swagger UI) para ver e testar os endpoints.
+http://127.0.0.1:8000/docs
+
+# [TESTES] Executa a suíte de testes completa (roda todos os arquivos test_*.py).
+pytest
+
+# [TESTES] Roda os testes E gera um relatório de cobertura (coverage).
+# (Mostra quais linhas do código da 'app/' foram executadas pelos testes).
+pytest --cov
