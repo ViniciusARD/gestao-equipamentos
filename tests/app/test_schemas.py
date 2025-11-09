@@ -1,8 +1,19 @@
+# tests/app/test_schemas.py
+
+"""
+Testes de Unidade para os Schemas Pydantic (app/schemas/)
+
+Este módulo testa a validação, criação e configuração dos modelos Pydantic
+usados na aplicação. O objetivo é garantir que os schemas aceitem dados
+corretos e rejeitem dados inválidos (ex: tipos errados, campos obrigatórios
+ausentes, formatos inválidos como e-mail).
+"""
+
 import pytest
 from pydantic import ValidationError
 from datetime import datetime, timedelta
 
-# Importa os schemas que queremos testar
+# Importa todos os schemas que serão testados
 from app.schemas.user import UserCreate, UserLogin
 from app.schemas.sector import SectorCreate
 from app.schemas.reservation import ReservationCreate, ReservationOut
@@ -12,7 +23,7 @@ from app.schemas.admin import ReservationStatusUpdate, UserRoleUpdate
 # --- Testes de Schemas de Usuário (user.py) ---
 
 def test_user_create_valid():
-    """Testa a criação de um usuário com dados válidos."""
+    """Testa a criação de um schema UserCreate com dados válidos."""
     user_data = {
         "username": "testuser",
         "email": "test@example.com",
@@ -21,12 +32,16 @@ def test_user_create_valid():
         "sector_id": 1,
         "terms_accepted": True
     }
+    # Se a instanciação ocorrer sem erros, o teste passa
     user = UserCreate(**user_data)
     assert user.username == "testuser"
     assert user.email == "test@example.com"
 
 def test_user_create_invalid_email():
-    """Testa a falha de validação do Pydantic para um e-mail inválido."""
+    """
+    Testa a falha de validação do UserCreate para um e-mail inválido.
+    Espera que o Pydantic levante um 'ValidationError'.
+    """
     with pytest.raises(ValidationError, match="valid email address"):
         UserCreate(
             username="bademail",
@@ -37,7 +52,7 @@ def test_user_create_invalid_email():
         )
 
 def test_user_login_valid():
-    """Testa o schema de login."""
+    """Testa a criação de um schema UserLogin com dados válidos."""
     login_data = {"email": "login@example.com", "password": "mypassword"}
     login = UserLogin(**login_data)
     assert login.email == "login@example.com"
@@ -46,13 +61,16 @@ def test_user_login_valid():
 # --- Testes de Schemas de Setor (sector.py) ---
 
 def test_sector_create_valid():
-    """Testa a criação de um setor válido."""
+    """Testa a criação de um schema SectorCreate com dados válidos."""
     sector_data = {"name": "Financeiro"}
     sector = SectorCreate(**sector_data)
     assert sector.name == "Financeiro"
 
 def test_sector_create_invalid_missing_name():
-    """Testa a falha ao criar um setor sem nome."""
+    """
+    Testa a falha ao criar um SectorCreate sem o campo obrigatório 'name'.
+    Espera um 'ValidationError' informando que o campo é obrigatório.
+    """
     with pytest.raises(ValidationError, match="Field required"):
         SectorCreate() # 'name' é obrigatório
 
@@ -60,7 +78,7 @@ def test_sector_create_invalid_missing_name():
 # --- Testes de Schemas de Equipamento (equipment.py) ---
 
 def test_equipment_type_create_valid():
-    """Testa a criação de um tipo de equipamento válido."""
+    """Testa a criação de um schema EquipmentTypeCreate com dados válidos."""
     eq_type_data = {
         "name": "Notebook Dell",
         "category": "Notebook",
@@ -70,7 +88,7 @@ def test_equipment_type_create_valid():
     assert eq_type.name == "Notebook Dell"
 
 def test_equipment_unit_create_valid():
-    """Testa a criação de uma unidade de equipamento válida."""
+    """Testa a criação de um schema EquipmentUnitCreate com dados válidos."""
     unit_data = {
         "type_id": 1,
         "identifier_code": "NTB-001",
@@ -86,7 +104,7 @@ def test_equipment_unit_create_valid():
 # --- Testes de Schemas de Reserva (reservation.py) ---
 
 def test_reservation_create_valid():
-    """Testa a criação de uma reserva válida."""
+    """Testa a criação de um schema ReservationCreate com dados válidos."""
     now = datetime.now()
     later = now + timedelta(hours=2)
     reservation_data = {
@@ -99,7 +117,11 @@ def test_reservation_create_valid():
     assert reservation.start_time == now
 
 def test_reservation_create_invalid_type():
-    """Testa a falha de validação de tipo no Pydantic."""
+    """
+    Testa a falha de validação de tipo no ReservationCreate.
+    Espera um 'ValidationError' ao passar uma string para 'unit_id', que
+    deveria ser um inteiro.
+    """
     with pytest.raises(ValidationError, match="Input should be a valid integer"):
         ReservationCreate(
             unit_id="not-an-int", # Deve ser um int
@@ -110,7 +132,10 @@ def test_reservation_create_invalid_type():
 # --- Testes de Schemas de Admin (admin.py) ---
 
 def test_reservation_status_update_valid_enum():
-    """Testa se o schema de admin aceita os status do Enum."""
+    """
+    Testa se o schema ReservationStatusUpdate aceita os status
+    definidos na enumeração (Enum) interna.
+    """
     update = ReservationStatusUpdate(status="approved")
     assert update.status == "approved"
     
@@ -118,11 +143,15 @@ def test_reservation_status_update_valid_enum():
     assert update.status == "rejected"
 
 def test_reservation_status_update_invalid_enum():
-    """Testa se o schema rejeita um status que não existe no Enum."""
+    """
+    Testa se o ReservationStatusUpdate rejeita um status que não
+    existe no Enum 'ReservationStatusEnum'.
+    'pending' não é um status que o admin pode definir manualmente.
+    """
     with pytest.raises(ValidationError):
-        ReservationStatusUpdate(status="pending") # 'pending' não é um status que o admin pode *definir*
+        ReservationStatusUpdate(status="pending")
 
 def test_user_role_update_valid():
-    """Testa o schema de atualização de role."""
+    """Testa se o schema UserRoleUpdate aceita os valores do Enum de permissões."""
     update = UserRoleUpdate(role="manager")
     assert update.role == "manager"
