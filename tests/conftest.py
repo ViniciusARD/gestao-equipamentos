@@ -11,8 +11,12 @@ Principais Fixtures:
 - db_session: Cria um banco de dados de teste limpo (em arquivo) para cada
   função de teste, garantindo o isolamento.
 - client: Fornece um 'TestClient' do FastAPI que usa o banco de dados de teste.
-- test_user: Cria um usuário padrão no banco de dados de teste para ser
-  usado em testes de login e de rotas protegidas.
+- Vários usuários (test_user, test_requester_user, test_manager_user, test_admin_user):
+  Cria usuários com diferentes perfis.
+- Cabeçalhos de Autenticação (auth_headers, requester_auth_headers, etc.):
+  Fornecem headers de login para os diferentes usuários.
+- Entidades de teste (test_sector, test_equipment_type, etc.):
+  Cria dados base para os testes de rotas.
 """
 
 # --- Importações Padrão ---
@@ -22,11 +26,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
+from datetime import datetime, timedelta, timezone
 
 # --- Configuração do Banco de Dados de Teste ---
-# Define o caminho para um arquivo de banco de dados SQLite de teste.
-# Usar um arquivo em vez de ':memory:' pode ajudar a depurar e é mais
-# próximo de um ambiente real, embora um pouco mais lento.
 TEST_DB_FILE = "./test.db"
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{TEST_DB_FILE}"
 
@@ -48,15 +50,12 @@ from app.models.unit_history import UnitHistory
 
 # 3. Importa dependências necessárias para as fixtures.
 from app.security import get_password_hash
+from main import app # Importa a app principal
 
 # --- Configuração do Engine e Sessão de Teste ---
-# Cria o engine do SQLAlchemy para o banco de dados SQLite.
-# 'check_same_thread': Necessário para o SQLite permitir conexões em
-# diferentes threads, o que o Pytest pode fazer.
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
-# Cria uma fábrica de sessões de teste.
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -64,48 +63,22 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 def db_session() -> Generator[Session, None, None]:
     """
     Fixture do Pytest para criar e limpar o banco de dados para CADA teste.
-
-    O 'scope="function"' garante que cada teste receba um banco de dados
-    novo, proporcionando isolamento total entre os testes.
-
-    Criação e Limpeza (Ciclo de Vida):
-    1. Garante que o arquivo 'test.db' de um teste anterior seja removido.
-    2. Cria todas as tabelas (Base.metadata.create_all).
-    3. Cria uma nova sessão (db = TestingSessionLocal()).
-    4. Fornece (yield) a sessão para o teste.
-    5. Após o teste, fecha a sessão (db.close()).
-    6. Destrói todas as tabelas (Base.metadata.drop_all).
-    7. Força o engine a liberar conexões (engine.dispose()) para que o S.O.
-       (especialmente o Windows) libere o "lock" do arquivo 'test.db'.
-    8. Remove o arquivo 'test.db'.
+    Garante o isolamento total entre os testes.
     """
-    # Garante que não haja um .db antigo de um teste que falhou
     if os.path.exists(TEST_DB_FILE):
         try:
             os.remove(TEST_DB_FILE)
         except PermissionError:
-            # Se a remoção falhar (ex: lock do S.O.), o dispose()
-            # abaixo deve resolver isso para a próxima execução.
             pass
 
-    # Cria todas as tabelas no arquivo ./test.db
     Base.metadata.create_all(bind=engine)
-    
     db = TestingSessionLocal()
     try:
-        # "yield" é o ponto onde a execução é passada para o teste
         yield db
     finally:
-        # Após o teste (mesmo que falhe), este bloco é executado
         db.close()
-        # Destrói todas as tabelas
         Base.metadata.drop_all(bind=engine)
-        
-        # Força o engine a soltar todas as conexões
-        # Isso é crucial para o Windows (WinError 32) liberar o lock do 'test.db'
         engine.dispose() 
-        
-        # Remove o arquivo de banco de dados
         if os.path.exists(TEST_DB_FILE):
             os.remove(TEST_DB_FILE)
 
@@ -114,59 +87,194 @@ def db_session() -> Generator[Session, None, None]:
 def client(db_session: Session) -> Generator[TestClient, None, None]:
     """
     Fixture do Pytest para criar um 'TestClient' do FastAPI.
-
-    Este cliente é usado para fazer requisições HTTP (GET, POST, etc.)
-    à nossa aplicação FastAPI em memória, simulando um usuário.
-
-    A importação do 'app' é feita DENTRO da fixture para garantir que
-    a configuração da aplicação (leitura de .env, etc.) ocorra no
-    momento certo.
-
-    Ele também sobrescreve a dependência 'get_db' da aplicação real
-    para usar a sessão de banco de dados de teste ('db_session').
-    """
     
-    # 4. Importa 'app' (de main) por ÚLTIMO e DENTRO da fixture.
-    from main import app
-
+    Substitui a dependência 'get_db' da aplicação para usar 
+    a sessão de banco de dados de teste (db_session).
+    """
     def override_get_db():
-        """
-        Função de substituição (override) da dependência 'get_db'.
-        Garante que as rotas da aplicação usem a sessão de teste (db_session)
-        em vez da sessão de produção.
-        """
         yield db_session
 
-    # Aplica a substituição da dependência na aplicação FastAPI
     app.dependency_overrides[get_db] = override_get_db
     
-    # 'with TestClient(app) as c:' gerencia o ciclo de vida da app de teste
     with TestClient(app) as c:
-        yield c # Fornece o cliente para o teste
+        yield c 
     
-    # Limpa os overrides após o teste para evitar interferência
     app.dependency_overrides.clear()
 
+# --- Fixtures de Entidades Base ---
 
 @pytest.fixture(scope="function")
-def test_user(db_session: Session) -> User:
-    """
-    Fixture que cria um usuário padrão (User) no banco de dados de teste.
+def test_sector(db_session: Session) -> Sector:
+    """Cria um setor 'TI' padrão para os testes."""
+    sector = Sector(name="TI")
+    db_session.add(sector)
+    db_session.commit()
+    db_session.refresh(sector)
+    return sector
 
-    Este usuário é pré-cadastrado, verificado e ativo, e já aceitou os termos.
-    É usado pela maioria dos testes que precisam de um usuário autenticado
-    para testar login ou rotas protegidas.
-    """
+# --- Fixtures de Usuários e Autenticação ---
+
+@pytest.fixture(scope="function")
+def test_user(db_session: Session, test_sector: Sector) -> User:
+    """Fixture que cria um usuário padrão (role='user') no banco de teste."""
     user = User(
         username="Test User",
         email="test@example.com",
         password_hash=get_password_hash("ValidPassword123!"),
-        role="user",       # Permissão padrão
-        is_active=True,    # Conta ativa
-        is_verified=True,  # E-mail verificado
-        terms_accepted=True  # Termos aceitos (corrige 403 no login)
+        role="user",
+        is_active=True,
+        is_verified=True,
+        terms_accepted=True,
+        sector_id=test_sector.id
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
+@pytest.fixture(scope="function")
+def test_requester_user(db_session: Session, test_sector: Sector) -> User:
+    """Cria um usuário com permissão de 'requester'."""
+    user = User(
+        username="Test Requester",
+        email="requester@example.com",
+        password_hash=get_password_hash("ValidPassword123!"),
+        role="requester",
+        is_active=True,
+        is_verified=True,
+        terms_accepted=True,
+        sector_id=test_sector.id
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture(scope="function")
+def test_manager_user(db_session: Session, test_sector: Sector) -> User:
+    """Cria um usuário com permissão de 'manager'."""
+    user = User(
+        username="Test Manager",
+        email="manager@example.com",
+        password_hash=get_password_hash("ValidPassword123!"),
+        role="manager",
+        is_active=True,
+        is_verified=True,
+        terms_accepted=True,
+        sector_id=test_sector.id
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture(scope="function")
+def test_admin_user(db_session: Session, test_sector: Sector) -> User:
+    """Cria um usuário com permissão de 'admin'."""
+    user = User(
+        username="Test Admin",
+        email="admin@example.com",
+        password_hash=get_password_hash("ValidPassword123!"),
+        role="admin",
+        is_active=True,
+        is_verified=True,
+        terms_accepted=True,
+        sector_id=test_sector.id
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+# --- Fixtures de Cabeçalhos de Autenticação ---
+
+def _get_auth_headers(client: TestClient, email: str, password: str) -> dict:
+    """Função auxiliar interna para logar e retornar headers."""
+    login_response = client.post(
+        "/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert login_response.status_code == 200, f"Falha no login para {email}"
+    access_token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {access_token}"}
+
+@pytest.fixture(scope="function")
+def auth_headers(client: TestClient, test_user: User) -> dict:
+    """Retorna cabeçalhos de autorização para o 'test_user' padrão."""
+    return _get_auth_headers(client, "test@example.com", "ValidPassword123!")
+
+@pytest.fixture(scope="function")
+def requester_auth_headers(client: TestClient, test_requester_user: User) -> dict:
+    """Retorna cabeçalhos de autorização para o 'test_requester_user'."""
+    return _get_auth_headers(client, "requester@example.com", "ValidPassword123!")
+
+@pytest.fixture(scope="function")
+def manager_auth_headers(client: TestClient, test_manager_user: User) -> dict:
+    """Retorna cabeçalhos de autorização para o 'test_manager_user'."""
+    return _get_auth_headers(client, "manager@example.com", "ValidPassword123!")
+
+@pytest.fixture(scope="function")
+def admin_auth_headers(client: TestClient, test_admin_user: User) -> dict:
+    """Retorna cabeçalhos de autorização para o 'test_admin_user'."""
+    return _get_auth_headers(client, "admin@example.com", "ValidPassword123!")
+
+# --- Fixtures de Equipamentos e Reservas ---
+
+@pytest.fixture(scope="function")
+def test_equipment_type(db_session: Session) -> EquipmentType:
+    """Cria um 'Tipo de Equipamento' (ex: Notebook) padrão."""
+    eq_type = EquipmentType(
+        name="Notebook Teste",
+        category="Notebook",
+        description="Equipamento para testes"
+    )
+    db_session.add(eq_type)
+    db_session.commit()
+    db_session.refresh(eq_type)
+    return eq_type
+
+@pytest.fixture(scope="function")
+def test_equipment_unit(db_session: Session, test_equipment_type: EquipmentType) -> EquipmentUnit:
+    """Cria uma 'Unidade de Equipamento' (ex: Notebook #001) padrão e disponível."""
+    unit = EquipmentUnit(
+        type_id=test_equipment_type.id,
+        identifier_code="NTB-TEST-001",
+        serial_number="SN-TEST-001",
+        status="available"
+    )
+    db_session.add(unit)
+    db_session.commit()
+    db_session.refresh(unit)
+    return unit
+
+@pytest.fixture(scope="function")
+def test_pending_reservation(db_session: Session, test_requester_user: User, test_equipment_unit: EquipmentUnit) -> Reservation:
+    """Cria uma reserva com status 'pending' para testes de aprovação/rejeição."""
+    res = Reservation(
+        user_id=test_requester_user.id,
+        unit_id=test_equipment_unit.id,
+        start_time=datetime.now(timezone.utc) + timedelta(days=1),
+        end_time=datetime.now(timezone.utc) + timedelta(days=2),
+        status="pending"
+    )
+    test_equipment_unit.status = "pending" # Marca a unidade como pendente
+    db_session.add(res)
+    db_session.commit()
+    db_session.refresh(res)
+    return res
+
+@pytest.fixture(scope="function")
+def test_approved_reservation(db_session: Session, test_requester_user: User, test_equipment_unit: EquipmentUnit) -> Reservation:
+    """Cria uma reserva com status 'approved' para testes (ex: falha ao deletar usuário)."""
+    res = Reservation(
+        user_id=test_requester_user.id,
+        unit_id=test_equipment_unit.id,
+        start_time=datetime.now(timezone.utc) + timedelta(days=1),
+        end_time=datetime.now(timezone.utc) + timedelta(days=2),
+        status="approved"
+    )
+    test_equipment_unit.status = "reserved" # Marca a unidade como reservada
+    db_session.add(res)
+    db_session.commit()
+    db_session.refresh(res)
+    return res
