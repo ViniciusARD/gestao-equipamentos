@@ -10,3 +10,7 @@ pytest
 # [TESTES] Roda os testes E gera um relatório de cobertura (coverage).
 # (Mostra quais linhas do código da 'app/' foram executadas pelos testes).
 pytest --cov
+
+# [TESTES] Gera um relatório navegável em HTML a partir dos dados de cobertura.
+# (Cria uma pasta 'htmlcov/', abra o 'index.html' no navegador).
+coverage html
